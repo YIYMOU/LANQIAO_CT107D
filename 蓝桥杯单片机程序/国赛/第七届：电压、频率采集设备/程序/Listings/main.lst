@@ -1,0 +1,549 @@
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <STC15F2K60S2.H>
+   2          #include "iic.h"
+   3          #include "ds1302.h"
+   4          #include "intrins.h"
+   5          
+   6          #define u8 unsigned char
+   7          #define u16 unsigned int
+   8          // 7 6 5 4 3 2 1 0
+   9          #define get() (P3 & 0X3F) | ((P4 & 0X04) << 4) | ((P4 & 0X10) << 3)
+  10          
+  11          u8 code TAB[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0XBF,0XFF};
+  12          u8 disbuf[] = {0,1,2,3,4,5,6,7,8};
+  13          
+  14          extern u8 TIME[] ;
+  15          
+  16          u8 key_buf = 0;
+  17          u8 smg_cnt = 0;
+  18          
+  19          u8 mode;
+  20          
+  21          u16 fre = 0;
+  22          u16 fre_tt = 0;
+  23          bit fre_start = 0;
+  24          bit fre_flag = 1;
+  25          
+  26          u16 Vl = 1000;
+  27          u16 Vh = 2000;
+  28          u16 Vl_temp = 0;
+  29          u16 Vh_temp = 0;
+  30          
+  31          u16 sec_tt = 0;
+  32          bit flicker_flag = 0;
+  33          
+  34          u16 ad = 0;
+  35          
+  36          u8 hour = 0;
+  37          u8 min = 0;
+  38          u8 sec = 0;
+  39          u8 event = 0;
+  40          
+  41          u8 time_flag = 0;
+  42          
+  43          void Delay5ms()         //@12.000MHz
+  44          {
+  45   1              unsigned char i, j;
+  46   1      
+  47   1              i = 59;
+  48   1              j = 90;
+  49   1              do
+  50   1              {
+  51   2                      while (--j);
+  52   2              } while (--i);
+  53   1      }
+  54          
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 2   
+
+  55          
+  56          void set_port(u8 p2,u8 p0)
+  57          {
+  58   1              P0 = p0;
+  59   1              P2 &= 0X1F;
+  60   1              P2 |= p2;
+  61   1              P0 = p0;
+  62   1              P2 &= 0X1F;
+  63   1      }
+  64          
+  65          void allinit(void)
+  66          {
+  67   1              set_port(0x80,0xff);
+  68   1              set_port(0xa0,0x00);
+  69   1              set_port(0xc0,0xff);
+  70   1              set_port(0xe0,0xff);
+  71   1      }
+  72          
+  73          void display(void)
+  74          {
+  75   1              if(mode == 0)
+  76   1              {
+  77   2                      disbuf[1] = 10;
+  78   2                      disbuf[2] = 1;
+  79   2                      disbuf[3] = 10;
+  80   2                      disbuf[4] = 11;
+  81   2                      disbuf[5] = ad / 1000;
+  82   2                      disbuf[6] = ad / 100 % 10;
+  83   2                      disbuf[7] = ad / 10 % 10;
+  84   2                      disbuf[8] = ad % 10;
+  85   2                      
+  86   2              }
+  87   1              else if(mode == 1)
+  88   1              {
+  89   2                      disbuf[1] = TIME[2] / 16;
+  90   2                      disbuf[2] = TIME[2] % 16;
+  91   2                      disbuf[3] = 10;
+  92   2                      disbuf[4] = TIME[1] / 16;
+  93   2                      disbuf[5] = TIME[1] % 16;
+  94   2                      disbuf[6] = 10;
+  95   2                      disbuf[7] = TIME[0] / 16;
+  96   2                      disbuf[8] = TIME[0] % 16;
+  97   2              }
+  98   1              else if(mode == 3 || mode == 4)
+  99   1              {
+ 100   2                      disbuf[1] = Vh_temp / 1000;
+ 101   2                      disbuf[2] = Vh_temp / 100 % 10;
+ 102   2                      disbuf[3] = Vh_temp / 10 % 10;
+ 103   2                      disbuf[4] = Vh_temp % 10;
+ 104   2                      disbuf[5] = Vl_temp / 1000;
+ 105   2                      disbuf[6] = Vl_temp / 100 % 10;
+ 106   2                      disbuf[7] = Vl_temp / 10 % 10;
+ 107   2                      disbuf[8] = Vl_temp % 10;
+ 108   2              }
+ 109   1              else if(mode == 5 || mode == 6 || mode == 7)
+ 110   1              {
+ 111   2                      disbuf[1] = hour / 10;
+ 112   2                      disbuf[2] = hour % 10;
+ 113   2                      disbuf[3] = 10;
+ 114   2                      disbuf[4] = min / 10;
+ 115   2                      disbuf[5] = min % 10;
+ 116   2                      disbuf[6] = 10;
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 3   
+
+ 117   2                      disbuf[7] = sec / 10;
+ 118   2                      disbuf[8] = sec % 10;
+ 119   2              }
+ 120   1              else if(mode == 8)
+ 121   1              {
+ 122   2                      if(fre_flag)
+ 123   2                      {
+ 124   3                              disbuf[1] = 10;
+ 125   3                              disbuf[2] = 2;
+ 126   3                              disbuf[3] = 10;
+ 127   3                              disbuf[4] = fre / 10000;
+ 128   3                              disbuf[5] = fre / 1000 % 10;
+ 129   3                              disbuf[6] = fre / 100 % 10;
+ 130   3                              disbuf[7] = fre / 10 % 10;
+ 131   3                              disbuf[8] = fre % 10;
+ 132   3                      }
+ 133   2                      else
+ 134   2                      { // 1000000
+ 135   3                              disbuf[1] = 10;
+ 136   3                              disbuf[2] = 2;
+ 137   3                              disbuf[3] = 10;
+ 138   3                              disbuf[4] = (1000000 / fre) / 10000;
+ 139   3                              disbuf[5] = (1000000 / fre) / 1000 % 10;
+ 140   3                              disbuf[6] = (1000000 / fre) / 100 % 10;
+ 141   3                              disbuf[7] = (1000000 / fre) / 10 % 10;
+ 142   3                              disbuf[8] = (1000000 / fre) % 10;
+ 143   3                      }
+ 144   2              }
+ 145   1              else if(mode == 9)
+ 146   1              {
+ 147   2                      if(time_flag)
+ 148   2                      {
+ 149   3                              disbuf[1] = hour / 16;
+ 150   3                              disbuf[2] = hour % 16;
+ 151   3                              disbuf[3] = 10;
+ 152   3                              disbuf[4] = min / 16;
+ 153   3                              disbuf[5] = min % 16;
+ 154   3                              disbuf[6] = 10;
+ 155   3                              disbuf[7] = sec / 16;
+ 156   3                              disbuf[8] = sec % 16;   
+ 157   3                      }
+ 158   2                      else
+ 159   2                      {
+ 160   3                              disbuf[1] = 11;
+ 161   3                              disbuf[2] = 11;
+ 162   3                              disbuf[3] = 11;
+ 163   3                              disbuf[4] = 11;
+ 164   3                              disbuf[5] = 11;
+ 165   3                              disbuf[6] = 11;
+ 166   3                              disbuf[7] = 0;
+ 167   3                              disbuf[8] = event;
+ 168   3                      }
+ 169   2              }
+ 170   1      }
+ 171          
+ 172          void KBD(void)
+ 173          {
+ 174   1              u8 key_temp;
+ 175   1              P3 |= 0X0F; P44 = 0; P42 = 0;
+ 176   1              key_temp = get();
+ 177   1              P3 &= 0XF0; P44 = 1; P42 = 1;
+ 178   1              key_temp |= get();
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 4   
+
+ 179   1              key_temp |= 0X30;
+ 180   1              if(key_temp != 0xff && key_buf == 0)
+ 181   1              {
+ 182   2                      Delay5ms();
+ 183   2                      P3 |= 0X0F; P44 = 0; P42 = 0;
+ 184   2                      key_temp = get();
+ 185   2                      P3 &= 0XF0; P44 = 1; P42 = 1;
+ 186   2                      key_temp |= get();
+ 187   2                      key_temp |= 0X30;       
+ 188   2                      if(key_temp != 0xff && key_buf == 0)
+ 189   2                      {
+ 190   3                              key_buf = key_temp;
+ 191   3                      }
+ 192   2              }
+ 193   1              else if(key_temp == 0xff && key_buf)
+ 194   1              {
+ 195   2                      Delay5ms();
+ 196   2                      P3 |= 0X0F; P44 = 0; P42 = 0;
+ 197   2                      key_temp = get();
+ 198   2                      P3 &= 0XF0; P44 = 1; P42 = 1;
+ 199   2                      key_temp |= get();
+ 200   2                      key_temp |= 0X30;
+ 201   2                      if(key_temp == 0xff && key_buf)
+ 202   2                      {
+ 203   3                              switch(key_buf)
+ 204   3                              {
+ 205   4                                      case 0x7e:
+ 206   4                                              if(mode == 0 || mode == 8 || mode == 9)
+ 207   4                                              {
+ 208   5                                                      mode = 1;
+ 209   5                                              }
+ 210   4                                              else if(mode == 5 || mode == 6 || mode == 7)
+ 211   4                                              {
+ 212   5                                                      TIME[0] = ((sec / 10) << 4) | (sec % 10);
+ 213   5                                                      TIME[1] = ((min / 10) << 4) | (min % 10);
+ 214   5                                                      TIME[2] = ((hour / 10) << 4) | (hour % 10);
+ 215   5                                                      init_ds1302();
+ 216   5                                                      mode = 1;
+ 217   5                                              }
+ 218   4                                      break;  // 显示时间信息
+ 219   4                                      case 0x7d:      // 电压测量
+ 220   4                                              if(mode == 1 || mode == 8 || mode == 9)
+ 221   4                                              {
+ 222   5                                                      mode = 0;
+ 223   5                                              }
+ 224   4                                              else if(mode == 3 || mode == 4)
+ 225   4                                              {
+ 226   5                                                      mode = 0;
+ 227   5                                                      if(Vl_temp < Vh_temp)
+ 228   5                                                      {
+ 229   6                                                              write_eeprom(0x10,Vl_temp / 100);
+ 230   6                                                              Delay5ms();
+ 231   6                                                              write_eeprom(0x11,Vh_temp / 100);
+ 232   6                                                              Delay5ms();
+ 233   6                                                              Vl = Vl_temp;
+ 234   6                                                              Vh = Vh_temp;
+ 235   6                                                      }
+ 236   5                                              }
+ 237   4                                      break;
+ 238   4                                      case 0x7b: 
+ 239   4                                              if(mode == 1 ||  mode == 0 || mode == 9)
+ 240   4                                              {
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 5   
+
+ 241   5                                                      mode = 8;
+ 242   5                                                      if(!fre_start)
+ 243   5                                                      {
+ 244   6                                                              fre_start = 1;
+ 245   6                                                              TR0 = 0;
+ 246   6                                                              TH0 = 0;
+ 247   6                                                              TL0 = 0;
+ 248   6                                                              fre_tt = 0;
+ 249   6                                                              TR0 = 1;
+ 250   6                                                      }
+ 251   5                                              }
+ 252   4                                      break;
+ 253   4                                      case 0x77: 
+ 254   4                                              if(mode == 0)
+ 255   4                                              {
+ 256   5                                                      mode = 3;       // 电压阈值调整
+ 257   5                                                      Vl_temp = Vl;
+ 258   5                                                      Vh_temp = Vh;
+ 259   5                                              }
+ 260   4                                              else if(mode == 3)
+ 261   4                                              {
+ 262   5                                                      mode = 4;
+ 263   5                                              }
+ 264   4                                              else if(mode == 4)
+ 265   4                                              {
+ 266   5                                                      mode = 3;
+ 267   5                                              }
+ 268   4                                              else if(mode == 1)
+ 269   4                                              {
+ 270   5                                                      mode = 5;
+ 271   5                                                      sec = (TIME[0] / 16) * 10 + (TIME[0] % 16);
+ 272   5                                                      min = (TIME[1] / 16) * 10 + (TIME[1] % 16);
+ 273   5                                                      hour = (TIME[2] / 16) * 10 + (TIME[2] % 16);
+ 274   5                                              }
+ 275   4                                              else if(mode == 5)
+ 276   4                                              {
+ 277   5                                                      mode = 6;
+ 278   5                                              }
+ 279   4                                              else if(mode == 6)
+ 280   4                                              {
+ 281   5                                                      mode = 7;
+ 282   5                                              }
+ 283   4                                              else if(mode == 7)
+ 284   4                                              {
+ 285   5                                                      mode = 5;
+ 286   5                                              }
+ 287   4                                              else if(mode == 8)
+ 288   4                                              {
+ 289   5                                                      fre_flag = !fre_flag;
+ 290   5                                              }
+ 291   4                                              else if(mode == 9)
+ 292   4                                              {
+ 293   5                                                      time_flag = !time_flag;
+ 294   5                                              }
+ 295   4                                      break;
+ 296   4                                      
+ 297   4                                      case 0xbe:      // 加
+ 298   4                                              if(mode == 3)
+ 299   4                                              {
+ 300   5                                                      if(Vh_temp < 5000)
+ 301   5                                                      {
+ 302   6                                                              Vh_temp += 500;
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 6   
+
+ 303   6                                                      }
+ 304   5                                              }
+ 305   4                                              else if(mode == 4)
+ 306   4                                              {
+ 307   5                                                      if(Vl_temp < 5000)
+ 308   5                                                      {
+ 309   6                                                              Vl_temp += 500;
+ 310   6                                                      }
+ 311   5                                              }
+ 312   4                                              else if(mode == 5)
+ 313   4                                              {
+ 314   5                                                      if(hour < 24)
+ 315   5                                                      {
+ 316   6                                                              hour++;
+ 317   6                                                      }
+ 318   5                                              }
+ 319   4                                              else if(mode == 6)
+ 320   4                                              {
+ 321   5                                                      if(min < 24)
+ 322   5                                                      {
+ 323   6                                                              min++;
+ 324   6                                                      }
+ 325   5                                              }
+ 326   4                                              else if(mode == 7)
+ 327   4                                              {
+ 328   5                                                      if(sec < 24)
+ 329   5                                                      {
+ 330   6                                                              sec++;
+ 331   6                                                      }
+ 332   5                                              }
+ 333   4                                      break;
+ 334   4                                      case 0xbd:      // 减
+ 335   4                                              if(mode == 3)
+ 336   4                                              {
+ 337   5                                                      if(Vh_temp > 0)
+ 338   5                                                      {
+ 339   6                                                              Vh_temp -= 500;
+ 340   6                                                      }
+ 341   5                                              }
+ 342   4                                              else if(mode == 4)
+ 343   4                                              {
+ 344   5                                                      if(Vl_temp > 0)
+ 345   5                                                      {
+ 346   6                                                              Vl_temp -= 500;
+ 347   6                                                      }
+ 348   5                                              }
+ 349   4                                              else if(mode == 5)
+ 350   4                                              {
+ 351   5                                                      if(hour > 0)
+ 352   5                                                      {
+ 353   6                                                              hour--;
+ 354   6                                                      }
+ 355   5                                              }
+ 356   4                                              else if(mode == 6)
+ 357   4                                              {
+ 358   5                                                      if(min > 0)
+ 359   5                                                      {
+ 360   6                                                              min--;
+ 361   6                                                      }
+ 362   5                                              }
+ 363   4                                              else if(mode == 7)
+ 364   4                                              {
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 7   
+
+ 365   5                                                      if(sec > 0)
+ 366   5                                                      {
+ 367   6                                                              sec--;
+ 368   6                                                      }
+ 369   5                                              }
+ 370   4                                      break;
+ 371   4                                      case 0xbb: 
+ 372   4                                              if(mode == 1 || mode == 0 || mode == 8)
+ 373   4                                              {
+ 374   5                                                      mode = 9;
+ 375   5                                                      event = read_eeprom(0x00);
+ 376   5                                                      Delay5ms();
+ 377   5                                                      sec = read_eeprom(0x01);
+ 378   5                                                      Delay5ms();
+ 379   5                                                      min = read_eeprom(0x02);
+ 380   5                                                      Delay5ms();
+ 381   5                                                      hour = read_eeprom(0x03);
+ 382   5                                                      Delay5ms();
+ 383   5                                              }
+ 384   4                                      break;
+ 385   4                              }
+ 386   3                              key_buf = 0;
+ 387   3                      }
+ 388   2              }       
+ 389   1      }
+ 390          
+ 391          void Timer2Init(void)           //1毫秒@12.000MHz
+ 392          {
+ 393   1              AUXR |= 0x04;           //定时器时钟1T模式
+ 394   1              T2L = 0x20;             //设置定时初值
+ 395   1              T2H = 0xD1;             //设置定时初值
+ 396   1              AUXR |= 0x10;           //定时器2开始计时
+ 397   1      }
+ 398          
+ 399          void timer2(void) interrupt 12
+ 400          {
+ 401   1              bit flag = 1;
+ 402   1              set_port(0xc0,0x01 << smg_cnt);
+ 403   1              if(++sec_tt >= 1000)
+ 404   1              {
+ 405   2                      sec_tt = 0;
+ 406   2                      flicker_flag = !flicker_flag;
+ 407   2              }
+ 408   1              if(flicker_flag)
+ 409   1              {
+ 410   2                      if(mode == 3 && (smg_cnt == 0 || smg_cnt == 1 || smg_cnt == 2 || smg_cnt == 3))
+ 411   2                      {
+ 412   3                              set_port(0xe0,TAB[11]);
+ 413   3                      }
+ 414   2                      else if(mode == 4 && (smg_cnt == 4 || smg_cnt == 5 || smg_cnt == 6 || smg_cnt == 7))
+ 415   2                      {
+ 416   3                              set_port(0xe0,TAB[11]);
+ 417   3                      }
+ 418   2                      else if(mode == 5 && ((smg_cnt == 0) || (smg_cnt == 1)))
+ 419   2                      {
+ 420   3                              set_port(0xe0,TAB[11]);
+ 421   3                      }
+ 422   2                      else if(mode == 6 && ((smg_cnt == 3) || (smg_cnt == 4)))
+ 423   2                      {
+ 424   3                              set_port(0xe0,TAB[11]);
+ 425   3                      }
+ 426   2                      else if(mode == 7 && ((smg_cnt == 6) || (smg_cnt == 7)))
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 8   
+
+ 427   2                      {
+ 428   3                              set_port(0xe0,TAB[11]);
+ 429   3                      }
+ 430   2                      else
+ 431   2                      {
+ 432   3                              set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);
+ 433   3                      }
+ 434   2              }
+ 435   1              else
+ 436   1                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);
+ 437   1              if(++smg_cnt >= 8) smg_cnt = 0;
+ 438   1              
+ 439   1              if(fre_start && ++fre_tt >= 1000)
+ 440   1              {
+ 441   2                      TR0 = 0;
+ 442   2                      fre_tt = 0;
+ 443   2                      fre = (TH0 << 8) | TL0;
+ 444   2                      TH0 = 0;
+ 445   2                      TL0 = 0;
+ 446   2                      TR0 = 1;
+ 447   2              }
+ 448   1      }
+ 449          
+ 450          void Timer0Init(void)           //1毫秒@12.000MHz
+ 451          {
+ 452   1              AUXR |= 0x80;           //定时器时钟1T模式
+ 453   1              TMOD &= 0xf0;           //设置定时器模式
+ 454   1              TMOD |= 0x04;           //设置定时器模式
+ 455   1              TL0 = 0;                //设置定时初值
+ 456   1              TH0 = 0;                //设置定时初值
+ 457   1              TF0 = 0;                //清除TF0标志
+ 458   1              TR0 = 0;                //定时器0开始计时
+ 459   1      }
+ 460          
+ 461          void main(void)
+ 462          {
+ 463   1              Timer2Init();
+ 464   1              allinit();
+ 465   1              IE2 |= 0X04;
+ 466   1              EA = 1;
+ 467   1              init_ds1302();
+ 468   1              Timer0Init();
+ 469   1              write_pcf8591(153);
+ 470   1              event = read_eeprom(0x00);
+ 471   1              Delay5ms();
+ 472   1              sec = read_eeprom(0x01);
+ 473   1              Delay5ms();
+ 474   1              min = read_eeprom(0x02);
+ 475   1              Delay5ms();
+ 476   1              hour = read_eeprom(0x03) * 100;
+ 477   1              Delay5ms();
+ 478   1              Vl = read_eeprom(0x10) * 100;
+ 479   1              Delay5ms();
+ 480   1              Vh = read_eeprom(0x11);
+ 481   1              Delay5ms();
+ 482   1              if(Vh % 500) Vh = 2000;
+ 483   1              if(Vl % 500) Vl = 1000;
+ 484   1              while(1)
+ 485   1              {
+ 486   2                      if(mode == 0)
+ 487   2                      {
+ 488   3                              ad = (u16)read_pcf8591(3) * 19.6;
+C51 COMPILER V9.55   MAIN                                                                  11/07/2020 21:31:14 PAGE 9   
+
+ 489   3                              ad = (u16)read_pcf8591(3) * 19.6;
+ 490   3                      }
+ 491   2                      read_ds1302();
+ 492   2                      if(ad > Vh || ad <Vl)
+ 493   2                      {
+ 494   3                              if(ad > Vh)
+ 495   3                                      write_eeprom(0x00,1);
+ 496   3                              else
+ 497   3                                      write_eeprom(0x00,0);
+ 498   3                              Delay5ms();
+ 499   3                              write_eeprom(0x01,TIME[0]);
+ 500   3                              Delay5ms();
+ 501   3                              write_eeprom(0x02,TIME[1]);
+ 502   3                              Delay5ms();
+ 503   3                              write_eeprom(0x03,TIME[2]);
+ 504   3                              Delay5ms();
+ 505   3                      }
+ 506   2                      display();
+ 507   2                      KBD();
+ 508   2              }
+ 509   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2438    ----
+   CONSTANT SIZE    =     12    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     33    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

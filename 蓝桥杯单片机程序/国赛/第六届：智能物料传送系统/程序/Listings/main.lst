@@ -1,0 +1,433 @@
+C51 COMPILER V9.55   MAIN                                                                  11/05/2020 14:27:16 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <STC15F2K60S2.H>
+   2          #include <IIC.H>
+   3          
+   4          #define u8 unsigned char
+   5          #define u16 unsigned int
+   6          
+   7          u8 code TAB[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0XBF,0XFF};
+   8          u8 disbuf[] = {0,1,2,3,4,5,6,7,8};
+   9          
+  10          sbit TX = P1^0;
+  11          sbit RX = P1^1;
+  12          
+  13          u8 key_buf = 0;
+  14          
+  15          u8 smg_cnt = 0;
+  16          
+  17          u8 distance;
+  18          u8 wave_tt = 0;
+  19          bit wave_flag = 0;
+  20          
+  21          bit start_trans = 0;
+  22          bit alarm_stop = 0;
+  23          
+  24          u16 LedFlicker_tt = 0;
+  25          bit LedFlicker_flag = 0;
+  26          bit LedFlicker_open = 0;
+  27          bit buzzer_flag = 0;
+  28          bit relay_flag = 0;
+  29          bit alarm_stop_flag = 0;
+  30          u16 Vo;
+  31          
+  32          u16 smg_flicker_tt = 0;
+  33          bit smg_flicker_flag = 0;
+  34          
+  35          u8 I_time = 2;
+  36          u8 II_time = 4;
+  37          u16 trans_tt = 0;
+  38          
+  39          u8 remain_sec = 0;
+  40          
+  41          u8 display_mode = 0;
+  42          
+  43          u16 onesec_tt = 0;
+  44          
+  45          void Delay5ms()         //@12.000MHz
+  46          {
+  47   1              unsigned char i, j;
+  48   1      
+  49   1              i = 59;
+  50   1              j = 90;
+  51   1              do
+  52   1              {
+  53   2                      while (--j);
+  54   2              } while (--i);
+C51 COMPILER V9.55   MAIN                                                                  11/05/2020 14:27:16 PAGE 2   
+
+  55   1      }
+  56          
+  57          
+  58          void set_port(u8 p2,u8 p0)
+  59          {
+  60   1              P0 = p0;
+  61   1              P2 &= 0X1F;
+  62   1              P2 |= p2;
+  63   1              P0 = p0;
+  64   1              P2 &= 0X1F;
+  65   1      }
+  66          
+  67          void allinit(void)
+  68          {
+  69   1              set_port(0x80,0xff);
+  70   1              set_port(0xa0,0x00);
+  71   1              set_port(0xc0,0xff);
+  72   1              set_port(0xe0,0xff);
+  73   1      }
+  74          
+  75          void display(void)
+  76          {
+  77   1              if(display_mode == 0)
+  78   1              {
+  79   2                      disbuf[1] = 1;
+  80   2                      disbuf[2] = 11;
+  81   2                      disbuf[3] = 11;
+  82   2                      disbuf[4] = distance / 10 % 10;
+  83   2                      disbuf[5] = distance % 10;
+  84   2                      disbuf[6] = 11;
+  85   2                      disbuf[7] = 11;
+  86   2                      if(distance <= 30)
+  87   2                              disbuf[8] = 1;
+  88   2                      else 
+  89   2                              disbuf[8] = 2;          
+  90   2              }
+  91   1              else if(display_mode == 1)
+  92   1              {
+  93   2                      disbuf[1] = 2;
+  94   2                      disbuf[2] = 11;
+  95   2                      disbuf[3] = 11;
+  96   2                      disbuf[4] = 11;
+  97   2                      disbuf[5] = 11;
+  98   2                      disbuf[6] = 11;
+  99   2                      disbuf[7] = remain_sec / 10;
+ 100   2                      disbuf[8] = remain_sec % 10;            
+ 101   2              }
+ 102   1              else if(display_mode == 2 || display_mode == 3 )
+ 103   1              {
+ 104   2                      disbuf[1] = 3;
+ 105   2                      disbuf[2] = 11;
+ 106   2                      disbuf[3] = 11;
+ 107   2                      disbuf[4] = I_time / 10;
+ 108   2                      disbuf[5] = I_time % 10;
+ 109   2                      disbuf[6] = 11;
+ 110   2                      disbuf[7] = II_time / 10;
+ 111   2                      disbuf[8] = II_time % 10;
+ 112   2              }
+ 113   1      
+ 114   1      }
+ 115          
+ 116          void BTN(void)
+C51 COMPILER V9.55   MAIN                                                                  11/05/2020 14:27:16 PAGE 3   
+
+ 117          {
+ 118   1              u8 key_temp;
+ 119   1              key_temp = P3 & 0X0F;
+ 120   1              if(key_temp != 0x0f && key_buf == 0)
+ 121   1              {
+ 122   2                      Delay5ms();
+ 123   2                      key_temp = P3 & 0X0F;
+ 124   2                      if(key_temp != 0x0f && key_buf == 0)
+ 125   2                      {
+ 126   3                              key_buf = key_temp;
+ 127   3                      }
+ 128   2              }
+ 129   1              else if(key_temp == 0x0f && key_buf)
+ 130   1              {
+ 131   2                      Delay5ms();
+ 132   2                      key_temp = P3 & 0X0F;
+ 133   2                      if(key_temp == 0x0f && key_buf != 0)
+ 134   2                      {
+ 135   3                              switch(key_buf)
+ 136   3                              {
+ 137   4                                      case 0x0e: 
+ 138   4                                              if(display_mode == 2)
+ 139   4                                              {
+ 140   5                                                      I_time++;
+ 141   5                                                      if(I_time >= 11) I_time = 1;
+ 142   5                                              }
+ 143   4                                              else if(display_mode == 3)
+ 144   4                                              {
+ 145   5                                                      II_time++;
+ 146   5                                                      if(II_time >= 11) II_time = 1;
+ 147   5                                              }
+ 148   4                                      break;
+ 149   4                                      case 0x0d: 
+ 150   4                                              if(display_mode == 0 || display_mode == 1)
+ 151   4                                                      display_mode = 2; 
+ 152   4                                              else if(display_mode == 2)
+ 153   4                                                      display_mode = 3; 
+ 154   4                                              else
+ 155   4                                              {
+ 156   5                                                      display_mode = 0; 
+ 157   5                                                      write_eeprom(0x00,I_time);
+ 158   5                                                      Delay5ms();
+ 159   5                                                      write_eeprom(0x01,II_time);
+ 160   5                                                      Delay5ms();
+ 161   5                                              }
+ 162   4                                      break;
+ 163   4                                      case 0x0b: 
+ 164   4                                              if(start_trans)
+ 165   4                                              {
+ 166   5                                                      alarm_stop = !alarm_stop;
+ 167   5                                                      if(alarm_stop)
+ 168   5                                                              relay_flag = 0;
+ 169   5                                                      else
+ 170   5                                                              relay_flag = 1;
+ 171   5                                              }
+ 172   4                                      break;
+ 173   4                                      case 0x07: 
+ 174   4                                              if(alarm_stop == 0 && start_trans == 0 && Vo < 400 && Vo >= 100)
+ 175   4                                              {
+ 176   5                                                      display_mode = 1;
+ 177   5                                                      start_trans = 1; 
+ 178   5                                                      onesec_tt = 0;
+C51 COMPILER V9.55   MAIN                                                                  11/05/2020 14:27:16 PAGE 4   
+
+ 179   5                                                      relay_flag = 1;
+ 180   5                                                      if(distance <= 30)
+ 181   5                                                      {
+ 182   6                                                              remain_sec = I_time;
+ 183   6                                                      }
+ 184   5                                                      else
+ 185   5                                                      {
+ 186   6                                                              remain_sec = II_time;
+ 187   6                                                      }
+ 188   5                                              }
+ 189   4                                      break;
+ 190   4                              }
+ 191   3                              key_buf = 0;
+ 192   3                      }
+ 193   2              }
+ 194   1      }
+ 195          
+ 196          void Timer2Init(void)           //1毫秒@12.000MHz
+ 197          {
+ 198   1              AUXR |= 0x04;           //定时器时钟1T模式
+ 199   1              T2L = 0x20;             //设置定时初值
+ 200   1              T2H = 0xD1;             //设置定时初值
+ 201   1              AUXR |= 0x10;           //定时器2开始计时
+ 202   1      }
+ 203          
+ 204          void timer2(void) interrupt 12
+ 205          {
+ 206   1              u8 led_state = 0xff;
+ 207   1              set_port(0xc0, 0x01 << smg_cnt);
+ 208   1              if(++smg_flicker_tt >= 500)
+ 209   1              {
+ 210   2                      smg_flicker_tt = 0;
+ 211   2                      smg_flicker_flag = !smg_flicker_flag;
+ 212   2              }
+ 213   1              if(display_mode == 2 && (smg_cnt == 3 || smg_cnt == 4))
+ 214   1              {
+ 215   2                      if(smg_flicker_flag)
+ 216   2                      {
+ 217   3                              set_port(0xe0, TAB[disbuf[smg_cnt + 1]]);
+ 218   3                      }
+ 219   2                      else 
+ 220   2                      {
+ 221   3                              set_port(0xe0, TAB[11]);
+ 222   3                      }
+ 223   2              }
+ 224   1              else if(display_mode == 3 && (smg_cnt == 6 || smg_cnt == 7))
+ 225   1              {
+ 226   2                      if(smg_flicker_flag)
+ 227   2                      {
+ 228   3                              set_port(0xe0, TAB[disbuf[smg_cnt + 1]]);
+ 229   3                      }
+ 230   2                      else 
+ 231   2                      {
+ 232   3                              set_port(0xe0, TAB[11]);
+ 233   3                      }
+ 234   2              }
+ 235   1              else 
+ 236   1              {
+ 237   2                      if(Vo < 100 && display_mode == 0)
+ 238   2                              set_port(0xe0, TAB[11]);
+ 239   2                      else 
+ 240   2                              set_port(0xe0, TAB[disbuf[smg_cnt + 1]]);
+C51 COMPILER V9.55   MAIN                                                                  11/05/2020 14:27:16 PAGE 5   
+
+ 241   2              }
+ 242   1              if(++smg_cnt >= 8) smg_cnt = 0;
+ 243   1              
+ 244   1              if(alarm_stop == 0 && start_trans && ++onesec_tt >= 1000)
+ 245   1              {
+ 246   2                      onesec_tt = 0;
+ 247   2                      remain_sec--;
+ 248   2                      if(remain_sec == 0)
+ 249   2                      {
+ 250   3                              start_trans = 0;
+ 251   3                              relay_flag = 0;
+ 252   3                              display_mode = 0;
+ 253   3                      }
+ 254   2              }
+ 255   1              
+ 256   1              if(++wave_tt >= 200)
+ 257   1              {
+ 258   2                      wave_tt = 0;
+ 259   2                      wave_flag = 1;
+ 260   2              }
+ 261   1              
+ 262   1              if(Vo >= 400)
+ 263   1              {
+ 264   2                      LedFlicker_open = 1;
+ 265   2              }
+ 266   1              else if(Vo < 100)
+ 267   1              {
+ 268   2                      led_state &= 0xfe;
+ 269   2                      LedFlicker_open = 0;
+ 270   2              }
+ 271   1              else 
+ 272   1              {
+ 273   2                      led_state &= 0xfd;
+ 274   2                      LedFlicker_open = 0;
+ 275   2              }
+ 276   1              
+ 277   1              if(++LedFlicker_tt >= 500)
+ 278   1              {
+ 279   2                      LedFlicker_tt = 0;
+ 280   2                      if(LedFlicker_open)
+ 281   2                      {
+ 282   3                              LedFlicker_flag = !LedFlicker_flag;
+ 283   3                      }
+ 284   2                      
+ 285   2                      if(alarm_stop)
+ 286   2                      {
+ 287   3                              alarm_stop_flag = !alarm_stop_flag;
+ 288   3                      }
+ 289   2              }
+ 290   1              if(LedFlicker_flag == 0 || Vo < 400)
+ 291   1              {
+ 292   2                      led_state |= 0x04;
+ 293   2              }
+ 294   1              else
+ 295   1              {
+ 296   2                      led_state &= 0xfb;
+ 297   2              }
+ 298   1              if(alarm_stop_flag == 0 || alarm_stop == 0)
+ 299   1              {
+ 300   2                      led_state |= 0x08;
+ 301   2              }
+ 302   1              else
+C51 COMPILER V9.55   MAIN                                                                  11/05/2020 14:27:16 PAGE 6   
+
+ 303   1              {
+ 304   2                      led_state &= 0xf7;
+ 305   2              }
+ 306   1              
+ 307   1              set_port(0x80,led_state);
+ 308   1              
+ 309   1              if(Vo >= 400)
+ 310   1                      buzzer_flag = 1;
+ 311   1              else 
+ 312   1                      buzzer_flag = 0;
+ 313   1              
+ 314   1              if(buzzer_flag && relay_flag)
+ 315   1              {
+ 316   2                      set_port(0xa0,0x40 | 0x10);
+ 317   2              }
+ 318   1              else if(buzzer_flag)
+ 319   1              {
+ 320   2                      set_port(0xa0,0x40);
+ 321   2              }
+ 322   1              else if(relay_flag)
+ 323   1              {
+ 324   2                      set_port(0xa0,0x10);
+ 325   2              }
+ 326   1              else
+ 327   1              {
+ 328   2                      set_port(0xa0,0x00);
+ 329   2              }
+ 330   1      }
+ 331          
+ 332          void Timer1Init(void)           //12微秒@12.000MHz
+ 333          {
+ 334   1              AUXR &= 0xBF;           //定时器时钟12T模式
+ 335   1              TMOD &= 0x0F;           //设置定时器模式
+ 336   1              TL1 = 0xF4;             //设置定时初值
+ 337   1              TH1 = 0xFF;             //设置定时初值
+ 338   1              TF1 = 0;                //清除TF1标志
+ 339   1              TR1 = 0;                //定时器1关闭
+ 340   1      }
+ 341          
+ 342          void wave_rec()
+ 343          {
+ 344   1              if(wave_flag)
+ 345   1              {
+ 346   2                      u8 num = 10;
+ 347   2                      wave_flag = 0;
+ 348   2                      TX = 0;
+ 349   2                      TL1 = 0xF4;             //设置定时初值
+ 350   2                      TH1 = 0xFF;             //设置定时初值
+ 351   2                      TR1 = 1;
+ 352   2                      while(num--)
+ 353   2                      {
+ 354   3                              while(!TF1);
+ 355   3                              TF1 = 0;
+ 356   3                              TX ^= 1;
+ 357   3                      }
+ 358   2                      TR1 = 0;
+ 359   2                      TL1 = 0;                //设置定时初值
+ 360   2                      TH1 = 0;                //设置定时初值
+ 361   2                      TR1 = 1;
+ 362   2                      while(!TF1 && RX);
+ 363   2                      TR1 = 0;
+ 364   2                      if(TF1)
+C51 COMPILER V9.55   MAIN                                                                  11/05/2020 14:27:16 PAGE 7   
+
+ 365   2                      {
+ 366   3                              TF1 = 0;
+ 367   3                              distance = 99;
+ 368   3                      }
+ 369   2                      else
+ 370   2                      {
+ 371   3                              distance = ((TH1 << 8) | TL1) * 0.017;
+ 372   3                              if(distance > 99) distance = 99;
+ 373   3                      }
+ 374   2              }
+ 375   1      }
+ 376          
+ 377          
+ 378          void main(void)
+ 379          {
+ 380   1              allinit();
+ 381   1              Timer1Init();
+ 382   1              Timer2Init();
+ 383   1              IE2 |= 0X04;
+ 384   1              EA = 1;
+ 385   1              I_time = read_eeprom(0x00);
+ 386   1              if(I_time > 10) I_time = 2;
+ 387   1              II_time = read_eeprom(0x01);
+ 388   1              if(II_time > 10) II_time = 2;
+ 389   1              while(1)
+ 390   1              {
+ 391   2                      Vo = read_pcf8591(3) * 1.96;
+ 392   2                      Vo = read_pcf8591(3) * 1.96;
+ 393   2                      wave_rec();
+ 394   2                      BTN();
+ 395   2                      display();
+ 396   2              }
+ 397   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1123    ----
+   CONSTANT SIZE    =     12    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     27       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      9    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,128 @@
+C51 COMPILER V9.55   ONEWIRE                                                               11/08/2020 18:19:45 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE ONEWIRE
+OBJECT MODULE PLACED IN .\Objects\onewire.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE onewire.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\o
+                    -newire.lst) OBJECT(.\Objects\onewire.obj)
+
+line level    source
+
+   1          /*
+   2            程序说明: 单总线驱动程序
+   3            软件环境: Keil uVision 4.10 
+   4            硬件环境: CT107单片机综合实训平台(外部晶振12MHz) STC89C52RC单片机
+   5            日    期: 2011-8-9
+   6          */
+   7          #include "STC15F2K60S2.h"
+   8          
+   9          sbit DQ = P1^4;  //单总线接口
+  10          
+  11          void Write_DS18B20(unsigned char dat);
+  12          unsigned char Read_DS18B20(void);
+  13          bit init_ds18b20(void);
+  14          void Delay_OneWire(unsigned int t);  //STC89C52RC
+  15          float rd_temperature(void);
+  16          
+  17          float rd_temperature(void)
+  18          {
+  19   1              unsigned int temp;
+  20   1              unsigned char high,low;
+  21   1              init_ds18b20();
+  22   1              Write_DS18B20(0xcc);
+  23   1              Write_DS18B20(0x44);
+  24   1              
+  25   1              init_ds18b20();
+  26   1              Write_DS18B20(0xcc);
+  27   1              Write_DS18B20(0xbe);
+  28   1              
+  29   1              low = Read_DS18B20();
+  30   1              high = Read_DS18B20();
+  31   1              
+  32   1      //      temp = high;
+  33   1      //      temp <<= 8;
+  34   1      //      temp |= low;
+  35   1              temp = (high << 8) | low;
+  36   1              return temp * 0.0625;
+  37   1      }
+  38          
+  39          //通过单总线向DS18B20写一个字节
+  40          void Write_DS18B20(unsigned char dat)
+  41          {
+  42   1              unsigned char i;
+  43   1              for(i=0;i<8;i++)
+  44   1              {
+  45   2                      DQ = 0;
+  46   2                      DQ = dat&0x01;
+  47   2                      Delay_OneWire(5);
+  48   2                      DQ = 1;
+  49   2                      dat >>= 1;
+  50   2              }
+  51   1              Delay_OneWire(5);
+  52   1      }
+  53          
+  54          //从DS18B20读取一个字节
+C51 COMPILER V9.55   ONEWIRE                                                               11/08/2020 18:19:45 PAGE 2   
+
+  55          unsigned char Read_DS18B20(void)
+  56          {
+  57   1              unsigned char i;
+  58   1              unsigned char dat;
+  59   1        
+  60   1              for(i=0;i<8;i++)
+  61   1              {
+  62   2                      DQ = 0;
+  63   2                      dat >>= 1;
+  64   2                      DQ = 1;
+  65   2                      if(DQ)
+  66   2                      {
+  67   3                              dat |= 0x80;
+  68   3                      }           
+  69   2                      Delay_OneWire(5);
+  70   2              }
+  71   1              return dat;
+  72   1      }
+  73          
+  74          //DS18B20设备初始化
+  75          bit init_ds18b20(void)
+  76          {
+  77   1              bit initflag = 0;
+  78   1              
+  79   1              DQ = 1;
+  80   1              Delay_OneWire(12);
+  81   1              DQ = 0;
+  82   1              Delay_OneWire(80);
+  83   1              DQ = 1;
+  84   1              Delay_OneWire(10); 
+  85   1          initflag = DQ;     
+  86   1              Delay_OneWire(5);
+  87   1        
+  88   1              return initflag;
+  89   1      }
+  90          
+  91          //单总线延时函数
+  92          void Delay_OneWire(unsigned int t)  //STC89C52RC
+  93          {
+  94   1              t *= 10;
+  95   1              while(t--);
+  96   1      }
+  97          
+  98          
+  99          
+ 100          
+ 101          
+ 102          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    191    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

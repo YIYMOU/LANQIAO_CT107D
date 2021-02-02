@@ -1,0 +1,318 @@
+C51 COMPILER V9.55   MAIN                                                                  10/03/2020 00:05:43 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "stc15f2k60s2.h"
+   2          #include "iic.h"
+   3          #define u8 unsigned char
+   4          #define u16 unsigned int
+   5          
+   6          u8 code TAB[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0xbf,0xff};
+   7          u8 DISBUF[] = {0,11,11,11,11,11,11,11,11};
+   8          bit run = 1;
+   9          u16 seting_tt = 0;
+  10          u8 run_interval = 4;
+  11          u8 seting = 0;
+  12          u8 key_buf = 0;
+  13          u8 pwm_tt = 0;
+  14          u8 pwm_level = 20;
+  15          u16 led_speed = 4000;
+  16          u8 led_mode = 1;
+  17          u8 led_cnt = 0;
+  18          u8 led_buf[4][8]={ 
+  19                          0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,
+  20                          0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01,
+  21                          0x81,0x42,0x24,0x18,0x81,0x42,0x24,0x18,
+  22                          0x18,0x24,0x42,0x81,0x18,0x24,0x42,0x81
+  23          };
+  24          u16 led_tt = 0;
+  25          
+  26          void delay_ms(u16 ms)
+  27          {
+  28   1              u16 i,j;
+  29   1              for( i = 845; i > 0; i--)
+  30   1                      for( j = ms; j > 0; j--);
+  31   1      }
+  32          
+  33          void set_port(u8 p2,u8 p0)
+  34          {
+  35   1              P0 = p0;
+  36   1              P2 &= 0X1F;
+  37   1              P2 |= p2;
+  38   1              P0 = p0;
+  39   1              P2 &= 0x1f;
+  40   1      }
+  41          
+  42          void allinit(void)
+  43          {
+  44   1              set_port(0x80,0xff);
+  45   1              set_port(0xa0,0x00);
+  46   1              set_port(0xc0,0xff);
+  47   1              set_port(0xe0,0xff);
+  48   1      }
+  49          
+  50          void BTN(void)
+  51          {
+  52   1              static u8 led_mode_temp;
+  53   1              u8 key_temp = P3 & 0X0F;
+  54   1              if(key_temp != 0x0f && !key_buf)
+C51 COMPILER V9.55   MAIN                                                                  10/03/2020 00:05:43 PAGE 2   
+
+  55   1              {
+  56   2                      delay_ms(5);
+  57   2                      key_temp = P3 & 0X0F;
+  58   2                      if(key_temp != 0x0f)
+  59   2                      {
+  60   3                              key_buf = key_temp;
+  61   3                              if(seting == 0 && key_buf == 0x07)
+  62   3                              {
+  63   4                                      DISBUF[1] = 11;
+  64   4                                      DISBUF[2] = 11;
+  65   4                                      DISBUF[3] = 11;
+  66   4                                      DISBUF[4] = 11;
+  67   4                                      DISBUF[5] = 11;
+  68   4                                      DISBUF[6] = 11;
+  69   4                                      DISBUF[7] = 10;
+  70   4                                      if(pwm_level == 90) DISBUF[8] = 4;
+  71   4                                      else if(pwm_level == 60) DISBUF[8] = 3;
+  72   4                                      else if(pwm_level == 30) DISBUF[8] = 2;
+  73   4                                      else if(pwm_level == 10) DISBUF[8] = 1;
+  74   4                              }
+  75   3                      }
+  76   2              }
+  77   1              else if(key_temp == 0x0f && key_buf)
+  78   1              {
+  79   2                      delay_ms(5);
+  80   2                      key_temp = P3 & 0X0F;
+  81   2                      if(key_temp == 0x0f)
+  82   2                      {
+  83   3                              if(seting == 0 && key_buf == 0x07)
+  84   3                              {
+  85   4                                      DISBUF[1] = 11;
+  86   4                                      DISBUF[2] = 11;
+  87   4                                      DISBUF[3] = 11;
+  88   4                                      DISBUF[4] = 11;
+  89   4                                      DISBUF[5] = 11;
+  90   4                                      DISBUF[6] = 11;
+  91   4                                      DISBUF[7] = 11;
+  92   4                                      DISBUF[8] = 11;
+  93   4                              }
+  94   3                              else
+  95   3                              {
+  96   4                                      switch(key_buf)
+  97   4                                      {
+  98   5                                              case 0x0e: run = !run; break;
+  99   5                                              case 0x0d: 
+ 100   5                                                      if(seting == 0)
+ 101   5                                                      {
+ 102   6                                                              seting = 1;
+ 103   6                                                              led_mode_temp = 1;
+ 104   6                                                              run_interval = 4;
+ 105   6                                                              DISBUF[1] = 10;
+ 106   6                                                              DISBUF[2] = led_mode;
+ 107   6                                                              DISBUF[3] = 10;
+ 108   6                                                              DISBUF[4] = 11;
+ 109   6                                                              DISBUF[5] = 11;
+ 110   6                                                              DISBUF[6] = run_interval;
+ 111   6                                                              DISBUF[7] = 0;
+ 112   6                                                              DISBUF[8] = 0;
+ 113   6                                                      }
+ 114   5                                                      else if(seting == 1)
+ 115   5                                                      {
+ 116   6                                                              seting = 2;
+C51 COMPILER V9.55   MAIN                                                                  10/03/2020 00:05:43 PAGE 3   
+
+ 117   6                                                      }
+ 118   5                                                      else if(seting == 2)
+ 119   5                                                      {
+ 120   6                                                              seting = 0;
+ 121   6                                                              led_mode = led_mode_temp;
+ 122   6                                                              led_speed = run_interval * 1000;
+ 123   6                                                              if(led_mode == 1) WRITE_EEPROM(0x01,run_interval);
+ 124   6                                                              else if(led_mode == 2) WRITE_EEPROM(0x02,run_interval);
+ 125   6                                                              else if(led_mode == 3) WRITE_EEPROM(0x03,run_interval);
+ 126   6                                                              else if(led_mode == 4) WRITE_EEPROM(0x04,run_interval);
+ 127   6                                                              delay_ms(5);
+ 128   6                                                      }
+ 129   5                                              break;
+ 130   5                                              case 0x0b: 
+ 131   5                                                      if(seting == 1)
+ 132   5                                                      {
+ 133   6                                                              if(led_mode_temp != 4) led_mode_temp++;
+ 134   6                                                              DISBUF[2] = led_mode_temp;
+ 135   6                                                      }
+ 136   5                                                      else if(seting == 2)
+ 137   5                                                      {
+ 138   6                                                              if(run_interval != 12) run_interval++;
+ 139   6                                                              if(run_interval >= 10)
+ 140   6                                                              {
+ 141   7                                                                      DISBUF[5] = run_interval / 10;
+ 142   7                                                                      DISBUF[6] = run_interval % 10;
+ 143   7                                                                      
+ 144   7                                                              }
+ 145   6                                                              else
+ 146   6                                                              {
+ 147   7                                                                      DISBUF[6] = run_interval;       
+ 148   7                                                              }                                                       
+ 149   6                                                      }
+ 150   5                                              break;
+ 151   5                                              case 0x07:
+ 152   5                                                      if(seting == 1)
+ 153   5                                                      {
+ 154   6                                                              if(led_mode_temp != 1) led_mode_temp--;
+ 155   6                                                              DISBUF[2] = led_mode_temp;
+ 156   6                                                      }
+ 157   5                                                      else if(seting == 2)
+ 158   5                                                      {
+ 159   6                                                              if(run_interval != 4) run_interval--;
+ 160   6                                                              if(run_interval >= 10)
+ 161   6                                                              {
+ 162   7                                                                      DISBUF[5] = run_interval / 10;
+ 163   7                                                                      DISBUF[6] = run_interval % 10;
+ 164   7                                                              }
+ 165   6                                                              else
+ 166   6                                                              {
+ 167   7                                                                      DISBUF[6] = run_interval;       
+ 168   7                                                              }       
+ 169   6                                                      }
+ 170   5                                              break;
+ 171   5                                      }
+ 172   4                              }
+ 173   3                      }
+ 174   2                      key_buf = 0;
+ 175   2              }
+ 176   1      }
+ 177          
+ 178          void Timer0Init(void)           //100微秒@11.0592MHz
+C51 COMPILER V9.55   MAIN                                                                  10/03/2020 00:05:43 PAGE 4   
+
+ 179          {
+ 180   1              AUXR |= 0x80;           //定时器时钟1T模式
+ 181   1              TMOD &= 0xF0;           //设置定时器模式
+ 182   1              TL0 = 0xAE;             //设置定时初值
+ 183   1              TH0 = 0xFB;             //设置定时初值
+ 184   1              TF0 = 0;                //清除TF0标志
+ 185   1              TR0 = 1;                //定时器0开始计时
+ 186   1      }
+ 187          
+ 188          void timer0(void) interrupt 1
+ 189          {
+ 190   1              static u8 i = 1,dis_cnt = 0;
+ 191   1              static bit flag = 0;
+ 192   1              if(++dis_cnt >= 20)
+ 193   1              {
+ 194   2                      dis_cnt = 0;
+ 195   2                      if(++seting_tt == 400)
+ 196   2                      {
+ 197   3                              seting_tt = 0;
+ 198   3                              flag = !flag;
+ 199   3                      }
+ 200   2                      if(seting == 1 && flag)
+ 201   2                      {
+ 202   3                              if(i==1 || i == 2 || i == 3)
+ 203   3                              {
+ 204   4                                      set_port(0xc0,0x01 << (i-1));
+ 205   4                                      set_port(0xe0,TAB[11]);
+ 206   4                              }
+ 207   3                              else
+ 208   3                              {
+ 209   4                                      set_port(0xc0,0x01 << (i-1));
+ 210   4                                      set_port(0xe0,TAB[DISBUF[i]]);
+ 211   4                              }
+ 212   3                      }
+ 213   2                      else if(seting == 2 && flag)
+ 214   2                      {
+ 215   3                              if(i == 5 || i==6 || i == 7 || i == 8)
+ 216   3                              {
+ 217   4                                      set_port(0xc0,0x01 << (i-1));
+ 218   4                                      set_port(0xe0,TAB[11]);
+ 219   4                              }
+ 220   3                              else
+ 221   3                              {
+ 222   4                                      set_port(0xc0,0x01 << (i-1));
+ 223   4                                      set_port(0xe0,TAB[DISBUF[i]]);
+ 224   4                              }
+ 225   3                      }
+ 226   2                      else
+ 227   2                      {
+ 228   3                              set_port(0xc0,0x01 << (i-1));
+ 229   3                              set_port(0xe0,TAB[DISBUF[i]]);
+ 230   3                      }
+ 231   2                      if(++i == 9) i = 1;
+ 232   2              }
+ 233   1              if(++led_tt >= led_speed)
+ 234   1              {
+ 235   2                      if(run)
+ 236   2                      {
+ 237   3                              led_tt = 0 ;
+ 238   3                              if(++led_cnt == 8) led_cnt = 0;
+ 239   3                      }
+ 240   2              }
+C51 COMPILER V9.55   MAIN                                                                  10/03/2020 00:05:43 PAGE 5   
+
+ 241   1              if(++pwm_tt >= 100)
+ 242   1              {
+ 243   2                      pwm_tt = 0;
+ 244   2              }
+ 245   1              else if(pwm_tt >= pwm_level)
+ 246   1              {
+ 247   2                      set_port(0x80,0xff);
+ 248   2              }
+ 249   1              else
+ 250   1              {
+ 251   2                      set_port(0x80,~led_buf[led_mode-1][led_cnt]);
+ 252   2              }
+ 253   1      }
+ 254          
+ 255          void main(void)
+ 256          {
+ 257   1              u8 temp ;
+ 258   1              Timer0Init();
+ 259   1              allinit();
+ 260   1              ET0 = 1;
+ 261   1              EA = 1;
+ 262   1              WRITE_EEPROM(0x01,123);
+ 263   1              delay_ms(5);
+ 264   1              temp = READ_EEPROM(0x01);
+ 265   1              while(1)
+ 266   1              {
+ 267   2                      temp = READ_PCF8591(0x03);
+ 268   2                      if(temp > 192)
+ 269   2                      {
+ 270   3                              pwm_level = 90;
+ 271   3                      }
+ 272   2                      else if(temp > 128)
+ 273   2                      {
+ 274   3                              pwm_level = 60;
+ 275   3                      }
+ 276   2                      else if(temp > 64)
+ 277   2                      {
+ 278   3                              pwm_level = 30;
+ 279   3                      }
+ 280   2                      else
+ 281   2                      {
+ 282   3                              pwm_level = 10;
+ 283   3                      }
+ 284   2                      BTN();
+ 285   2              }
+ 286   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    963    ----
+   CONSTANT SIZE    =     12    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     57       1
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

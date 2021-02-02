@@ -1,0 +1,123 @@
+C51 COMPILER V9.55   ONEWIRE                                                               10/03/2020 13:29:00 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE ONEWIRE
+OBJECT MODULE PLACED IN .\Objects\onewire.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE onewire.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\o
+                    -newire.lst) OBJECT(.\Objects\onewire.obj)
+
+line level    source
+
+   1          /*
+   2            程序说明: 单总线驱动程序
+   3            软件环境: Keil uVision 4.10 
+   4            硬件环境: CT107单片机综合实训平台(外部晶振12MHz) STC89C52RC单片机
+   5            日    期: 2011-8-9
+   6          */
+   7          #include "stc15f2k60s2.h"
+   8          
+   9          sbit DQ = P1^4;  //单总线接口
+  10          
+  11          void Delay_OneWire(unsigned int t);
+  12          void Write_DS18B20(unsigned char dat);
+  13          unsigned char Read_DS18B20(void);
+  14          bit init_ds18b20(void);
+  15          float ds18b20_read(void);
+  16          
+  17          float ds18b20_read(void)
+  18          {
+  19   1              unsigned char high,low;
+  20   1              unsigned int temp;
+  21   1              init_ds18b20();
+  22   1              Write_DS18B20(0xcc);
+  23   1              Write_DS18B20(0x44);
+  24   1              init_ds18b20();
+  25   1              Write_DS18B20(0xcc);
+  26   1              Write_DS18B20(0xbe);
+  27   1              low = Read_DS18B20();
+  28   1              high = Read_DS18B20();
+  29   1              temp = high;
+  30   1              temp <<= 8;
+  31   1              temp |= low;
+  32   1              return temp * 0.0625;
+  33   1      }
+  34          
+  35          //通过单总线向DS18B20写一个字节
+  36          void Write_DS18B20(unsigned char dat)
+  37          {
+  38   1              unsigned char i;
+  39   1              for(i=0;i<8;i++)
+  40   1              {
+  41   2                      DQ = 0;
+  42   2                      DQ = dat&0x01;
+  43   2                      Delay_OneWire(5);
+  44   2                      DQ = 1;
+  45   2                      dat >>= 1;
+  46   2              }
+  47   1              Delay_OneWire(5);
+  48   1      }
+  49          
+  50          //从DS18B20读取一个字节
+  51          unsigned char Read_DS18B20(void)
+  52          {
+  53   1              unsigned char i;
+  54   1              unsigned char dat;
+C51 COMPILER V9.55   ONEWIRE                                                               10/03/2020 13:29:00 PAGE 2   
+
+  55   1        
+  56   1              for(i=0;i<8;i++)
+  57   1              {
+  58   2                      DQ = 0;
+  59   2                      dat >>= 1;
+  60   2                      DQ = 1;
+  61   2                      if(DQ)
+  62   2                      {
+  63   3                              dat |= 0x80;
+  64   3                      }           
+  65   2                      Delay_OneWire(5);
+  66   2              }
+  67   1              return dat;
+  68   1      }
+  69          
+  70          //DS18B20设备初始化
+  71          bit init_ds18b20(void)
+  72          {
+  73   1              bit initflag = 0;
+  74   1              
+  75   1              DQ = 1;
+  76   1              Delay_OneWire(12);
+  77   1              DQ = 0;
+  78   1              Delay_OneWire(80);
+  79   1              DQ = 1;
+  80   1              Delay_OneWire(10); 
+  81   1          initflag = DQ;     
+  82   1              Delay_OneWire(5);
+  83   1        
+  84   1              return initflag;
+  85   1      }
+  86          
+  87          //单总线延时函数
+  88          void Delay_OneWire(unsigned int t)  //STC89C52RC
+  89          {
+  90   1              t = t * 10;
+  91   1              while(t--);
+  92   1      }
+  93          
+  94          
+  95          
+  96          
+  97          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    192    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

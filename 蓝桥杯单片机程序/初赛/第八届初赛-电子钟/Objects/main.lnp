@@ -1,0 +1,5 @@
+".\Objects\nain.obj",
+".\Objects\ds1302.obj",
+".\Objects\onewire.obj" 
+TO ".\Objects\main" 
+PRINT(".\Listings\main.m51") RAMSIZE(256) 

@@ -1,0 +1,436 @@
+C51 COMPILER V9.55   MAIN                                                                  11/03/2020 09:52:17 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <stc15f2k60s2.h>
+   2          #include <DS1302.h>
+   3          #include <iic.h>
+   4          
+   5          #define u8 unsigned char
+   6          #define u16 unsigned int
+   7          
+   8          u8 code TAB[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0XBF,0Xff,0x00};
+   9          u8 disbuf[] = {12,12,12,12,12,12,12,12,12};
+  10          
+  11          u8 smg_cnt = 0;
+  12          
+  13          u8 key_buf = 0;
+  14          
+  15          u8 wave_tt = 0;
+  16          bit wave_flag = 0;
+  17          bit wave_open = 0;
+  18          
+  19          sbit TX = P1^0;
+  20          sbit RX = P1^1;
+  21          u8 distance;
+  22          
+  23          u8 time_set = 0;
+  24          u8 sec = 0,min = 0,hour = 0;
+  25          
+  26          u16 flicker_tt = 0;
+  27          bit flicker_open = 0;
+  28          
+  29          u8 alarm_distance = 30;
+  30          bit alarm_set = 0;
+  31          
+  32          bit relay = 0;
+  33          bit led_open = 0;
+  34          u16 led_tt = 0;
+  35          bit led_flag = 0;
+  36          
+  37          bit on_flag = 0;
+  38          
+  39          extern u8 TIME[];
+  40          
+  41          void delay_ms(u16 ms)
+  42          {
+  43   1              u16 i,j;
+  44   1              for(i = 845; i > 0; i--)
+  45   1                      for(j = ms; j > 0; j--);
+  46   1      }
+  47          
+  48          void set_port(u8 p2,u8 p0)
+  49          {
+  50   1              P0 = p0;
+  51   1              P2 &= 0X1F;
+  52   1              P2 |= p2;
+  53   1              P0 = p0;
+  54   1              P2 &= 0X1F;
+C51 COMPILER V9.55   MAIN                                                                  11/03/2020 09:52:17 PAGE 2   
+
+  55   1      }
+  56          
+  57          void allinit(void)
+  58          {
+  59   1              set_port(0x80,0xff);
+  60   1              set_port(0xa0,0x00);
+  61   1              set_port(0xc0,0xff);
+  62   1              set_port(0xe0,0xff);
+  63   1      }
+  64          
+  65          void BTN(void)
+  66          {
+  67   1              u8 key_tmep;
+  68   1              key_tmep = P3 & 0X0F;
+  69   1              if(key_tmep != 0x0f && !key_buf)
+  70   1              {
+  71   2                      delay_ms(5);
+  72   2                      key_tmep = P3 & 0X0F;
+  73   2                      if(key_tmep != 0x0f && !key_buf)
+  74   2                      {
+  75   3                              key_buf = key_tmep;
+  76   3                      }
+  77   2              }
+  78   1              else if(key_tmep == 0x0f && key_buf)
+  79   1              {
+  80   2                      delay_ms(5);
+  81   2                      key_tmep = P3 & 0X0F;
+  82   2                      if(key_tmep == 0x0f && key_buf)
+  83   2                      {
+  84   3                              switch(key_buf)
+  85   3                              {
+  86   4                                      case 0x0e: wave_open = !wave_open; break;       // s7
+  87   4                                      case 0x0d: 
+  88   4                                                      if(wave_open == 0)
+  89   4                                                      {
+  90   5                                                              if(time_set == 0)
+  91   5                                                              {
+  92   6                                                                      sec = (TIME[0] / 16) * 10 + (TIME[0] % 16);
+  93   6                                                                      min = (TIME[1] / 16) * 10 + (TIME[1] % 16);
+  94   6                                                                      hour = (TIME[2] / 16) * 10 + (TIME[2] % 16);
+  95   6                                                                      time_set = 1;
+  96   6                                                              }       
+  97   5                                                              else if(time_set == 1)
+  98   5                                                              {
+  99   6                                                                      time_set = 2;
+ 100   6                                                              }
+ 101   5                                                              else if(time_set == 2)
+ 102   5                                                              {
+ 103   6                                                                      time_set = 3;
+ 104   6                                                              }
+ 105   5                                                              else if(time_set == 3)
+ 106   5                                                              {
+ 107   6                                                                      time_set = 0;
+ 108   6                                                                      TIME[0] = ((sec / 10) << 4) | (sec % 10);
+ 109   6                                                                      TIME[1] = ((min / 10) << 4) | (min % 10);
+ 110   6                                                                      TIME[2] = ((hour / 10) << 4) | (hour % 10);
+ 111   6                                                                      ds1302_init();
+ 112   6                                                              }
+ 113   5                                                      }
+ 114   4                                                      else 
+ 115   4                                                      {
+ 116   5                                                              alarm_set = !alarm_set;
+C51 COMPILER V9.55   MAIN                                                                  11/03/2020 09:52:17 PAGE 3   
+
+ 117   5                                                              if(alarm_set == 0)
+ 118   5                                                              {
+ 119   6                                                                      write_at24c02(0x00,alarm_distance);
+ 120   6                                                                      delay_ms(2);
+ 121   6                                                              }
+ 122   5                                                      }
+ 123   4                                      break;  // s6
+ 124   4                                      case 0x0b: 
+ 125   4                                                      if(time_set == 1)
+ 126   4                                                      {
+ 127   5                                                              if(hour < 23)
+ 128   5                                                                      hour++;
+ 129   5                                                      }
+ 130   4                                                      else if(time_set == 2)
+ 131   4                                                      {
+ 132   5                                                              if(min < 59)
+ 133   5                                                                      min++;
+ 134   5                                                      }
+ 135   4                                                      else if(time_set == 3)
+ 136   4                                                      {
+ 137   5                                                              if(sec < 59)
+ 138   5                                                                      sec++;
+ 139   5                                                      }
+ 140   4                                                      else if(alarm_set)
+ 141   4                                                      {
+ 142   5                                                              if(alarm_distance < 255)
+ 143   5                                                                      alarm_distance++;
+ 144   5                                                      }
+ 145   4                                      break;  // s5
+ 146   4                                      case 0x07: 
+ 147   4                                                      if(time_set == 1)
+ 148   4                                                      {
+ 149   5                                                              if(hour > 0)
+ 150   5                                                                      hour--;
+ 151   5                                                      }
+ 152   4                                                      else if(time_set == 2)
+ 153   4                                                      {
+ 154   5                                                              if(min > 0)
+ 155   5                                                                      min--;
+ 156   5                                                      }
+ 157   4                                                      else if(time_set == 3)
+ 158   4                                                      {
+ 159   5                                                              if(sec > 0)
+ 160   5                                                                      sec--;
+ 161   5                                                      }
+ 162   4                                                      else if(alarm_set)
+ 163   4                                                      {
+ 164   5                                                              if(alarm_distance > 0)
+ 165   5                                                                      alarm_distance--;
+ 166   5                                                      }
+ 167   4                                      break;  // s4
+ 168   4                              }
+ 169   3                              key_buf = 0;
+ 170   3                      }
+ 171   2              }
+ 172   1      }
+ 173          
+ 174          void display_mode(void)
+ 175          {
+ 176   1              if(wave_open == 0)
+ 177   1              {
+ 178   2                      if(time_set)
+C51 COMPILER V9.55   MAIN                                                                  11/03/2020 09:52:17 PAGE 4   
+
+ 179   2                      {
+ 180   3                              disbuf[1] = hour / 10;
+ 181   3                              disbuf[2] = hour % 10;
+ 182   3                              disbuf[3] = 10;
+ 183   3                              disbuf[4] = min / 10;
+ 184   3                              disbuf[5] = min % 10;
+ 185   3                              disbuf[6] = 10;
+ 186   3                              disbuf[7] = sec / 10;
+ 187   3                              disbuf[8] = sec % 10;
+ 188   3                      }
+ 189   2                      else
+ 190   2                      {
+ 191   3                              read_ds1302();
+ 192   3                              disbuf[1] = TIME[2] / 16;
+ 193   3                              disbuf[2] = TIME[2] % 16;
+ 194   3                              disbuf[3] = 10;
+ 195   3                              disbuf[4] = TIME[1] / 16;
+ 196   3                              disbuf[5] = TIME[1] % 16;               
+ 197   3                              disbuf[6] = 10;
+ 198   3                              disbuf[7] = TIME[0] / 16;
+ 199   3                              disbuf[8] = TIME[0] % 16;
+ 200   3                      }                       
+ 201   2              }
+ 202   1              else if(wave_open == 1)
+ 203   1              {       
+ 204   2                      if(alarm_set == 0)
+ 205   2                      {
+ 206   3                              disbuf[1] = 11;
+ 207   3                              disbuf[2] = 11;
+ 208   3                              disbuf[3] = 11;
+ 209   3                              disbuf[4] = 11;
+ 210   3                              disbuf[5] = 11; 
+ 211   3                              disbuf[6] = distance / 100 % 10;
+ 212   3                              disbuf[7] = distance / 10 % 10;
+ 213   3                              disbuf[8] = distance % 10;      
+ 214   3                      }
+ 215   2                      else
+ 216   2                      {
+ 217   3                              disbuf[1] = 11;
+ 218   3                              disbuf[2] = 11;
+ 219   3                              disbuf[3] = 11;
+ 220   3                              disbuf[4] = 10;
+ 221   3                              disbuf[5] = 10; 
+ 222   3                              disbuf[6] = alarm_distance / 100 % 10;
+ 223   3                              disbuf[7] = alarm_distance / 10 % 10;
+ 224   3                              disbuf[8] = alarm_distance % 10;
+ 225   3                      }
+ 226   2                              
+ 227   2              }
+ 228   1      }
+ 229          
+ 230          void Timer2Init(void)           //1毫秒@12.000MHz
+ 231          {
+ 232   1              AUXR |= 0x04;           //定时器时钟1T模式
+ 233   1              T2L = 0x20;             //设置定时初值
+ 234   1              T2H = 0xD1;             //设置定时初值
+ 235   1              AUXR |= 0x10;           //定时器2开始计时
+ 236   1      }
+ 237          
+ 238          void timer2(void) interrupt 12
+ 239          {
+ 240   1              if(time_set == 0)
+C51 COMPILER V9.55   MAIN                                                                  11/03/2020 09:52:17 PAGE 5   
+
+ 241   1              {
+ 242   2                      set_port(0xc0,0x01 << smg_cnt);
+ 243   2                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);
+ 244   2              }
+ 245   1              else
+ 246   1              {
+ 247   2                      if(++flicker_tt >= 500)
+ 248   2                      {
+ 249   3                              flicker_tt = 0;
+ 250   3                              flicker_open = !flicker_open;
+ 251   3                      }
+ 252   2                      if(time_set == 1 && (smg_cnt == 0 || smg_cnt == 1))
+ 253   2                      {
+ 254   3                              if(flicker_open)
+ 255   3                              {       
+ 256   4                                      set_port(0xc0,0x01 << smg_cnt);
+ 257   4                                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);                        
+ 258   4                              }
+ 259   3                              else
+ 260   3                              {
+ 261   4                                      set_port(0xc0,0x01 << smg_cnt);
+ 262   4                                      set_port(0xe0,TAB[11]); 
+ 263   4                              }
+ 264   3                      }
+ 265   2                      else if(time_set == 2 && (smg_cnt == 3 || smg_cnt == 4))
+ 266   2                      {
+ 267   3                              if(flicker_open)
+ 268   3                              {       
+ 269   4                                      set_port(0xc0,0x01 << smg_cnt);
+ 270   4                                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);                        
+ 271   4                              }
+ 272   3                              else
+ 273   3                              {
+ 274   4                                      set_port(0xc0,0x01 << smg_cnt);
+ 275   4                                      set_port(0xe0,TAB[11]); 
+ 276   4                              }
+ 277   3                      }
+ 278   2                      else if(time_set == 3 && (smg_cnt == 6 || smg_cnt == 7))
+ 279   2                      {
+ 280   3                              if(flicker_open)
+ 281   3                              {       
+ 282   4                                      set_port(0xc0,0x01 << smg_cnt);
+ 283   4                                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);                        
+ 284   4                              }
+ 285   3                              else
+ 286   3                              {
+ 287   4                                      set_port(0xc0,0x01 << smg_cnt);
+ 288   4                                      set_port(0xe0,TAB[11]); 
+ 289   4                              }
+ 290   3                      }
+ 291   2                      else
+ 292   2                      {
+ 293   3                              set_port(0xc0,0x01 << smg_cnt);
+ 294   3                              set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);
+ 295   3                      }
+ 296   2              }
+ 297   1              if(++smg_cnt >= 8) smg_cnt = 0;
+ 298   1              
+ 299   1              if(wave_open && ++wave_tt >= 200)
+ 300   1              {
+ 301   2                      wave_tt = 0;
+ 302   2                      wave_flag = 1;
+C51 COMPILER V9.55   MAIN                                                                  11/03/2020 09:52:17 PAGE 6   
+
+ 303   2              }
+ 304   1              if(on_flag)
+ 305   1              {
+ 306   2                      if(wave_open && distance < alarm_distance)
+ 307   2                      set_port(0xa0,0x10);
+ 308   2                      else
+ 309   2                              set_port(0xa0,0x00);
+ 310   2                      
+ 311   2                      if(wave_open && distance < alarm_distance * 1.2)
+ 312   2                      {
+ 313   3                              if(++led_tt >= 300)
+ 314   3                              {
+ 315   4                                      led_tt = 0;
+ 316   4                                      if(led_flag)
+ 317   4                                      {
+ 318   5                                              led_flag = 0;
+ 319   5                                              set_port(0x80,0xfe);
+ 320   5                                      }
+ 321   4                                      else
+ 322   4                                      {
+ 323   5                                              led_flag = 1;
+ 324   5                                              set_port(0x80,0xff);
+ 325   5                                      }
+ 326   4                              }
+ 327   3                      }
+ 328   2                      else
+ 329   2                              set_port(0x80,0xff);
+ 330   2              }
+ 331   1      }
+ 332          
+ 333          void Timer0Init(void)           //12微秒@12.000MHz
+ 334          {
+ 335   1              AUXR &= 0x7F;           //定时器时钟12T模式
+ 336   1              TMOD &= 0xF0;           //设置定时器模式
+ 337   1              TL0 = 0xF4;             //设置定时初值
+ 338   1              TH0 = 0xFF;             //设置定时初值
+ 339   1              TF0 = 0;                //清除TF0标志
+ 340   1              TR0 = 0;                //定时器0关闭
+ 341   1      }
+ 342          
+ 343          unsigned char wave_rec(void)
+ 344          {
+ 345   1              u8 dis,num = 10;
+ 346   1              TL0 = 0xF4;             //设置定时初值
+ 347   1              TH0 = 0xFF;             //设置定时初值
+ 348   1              TX = 0;
+ 349   1              TR0 = 1;                //定时器0打开
+ 350   1              while(num--)
+ 351   1              {
+ 352   2                      while(!TF0);
+ 353   2                      TX ^= 1;
+ 354   2                      TF0 = 0;
+ 355   2              }
+ 356   1              TR0 = 0;                //定时器0关闭
+ 357   1              TL0 = 0;                //设置定时初值
+ 358   1              TH0 = 0;                //设置定时初值
+ 359   1              TR0 = 1;                //定时器0打开
+ 360   1              while(!TF0 && RX);
+ 361   1              TR0 = 0;                //定时器0关闭
+ 362   1              if(TF0)
+ 363   1              {
+ 364   2                      TF0 = 0;
+C51 COMPILER V9.55   MAIN                                                                  11/03/2020 09:52:17 PAGE 7   
+
+ 365   2                      dis = 255;
+ 366   2              }
+ 367   1              else
+ 368   1              {
+ 369   2                      dis = ((TH0 << 8) | TL0) * 0.017;
+ 370   2              }
+ 371   1              return dis;
+ 372   1      }
+ 373          
+ 374          
+ 375          void main(void)
+ 376          {
+ 377   1              set_port(0x80,0x00);
+ 378   1              set_port(0xa0,0x40);
+ 379   1              IE2 |= 0x04;                    //开定时器2中断
+ 380   1          EA = 1;
+ 381   1              Timer2Init();
+ 382   1              Timer0Init();
+ 383   1              delay_ms(1000);
+ 384   1              on_flag = 1;
+ 385   1              allinit();
+ 386   1              ds1302_init();
+ 387   1              read_at24c02(0x00);
+ 388   1              while(1)
+ 389   1              {
+ 390   2                      BTN();
+ 391   2                      if(wave_open && wave_flag)
+ 392   2                      {
+ 393   3                              wave_flag = 0;
+ 394   3                              distance = wave_rec();
+ 395   3                      }
+ 396   2                      display_mode();
+ 397   2              }
+ 398   1      }
+ 399          
+ 400          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1339    ----
+   CONSTANT SIZE    =     13    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     22    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      8    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

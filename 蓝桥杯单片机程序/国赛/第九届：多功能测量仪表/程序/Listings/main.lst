@@ -1,0 +1,483 @@
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <STC15F2K60S2.H>
+   2          #include "onewire.h"
+   3          #include "iic.h"
+   4          
+   5          #define u8 unsigned char
+   6          #define u16 unsigned int
+   7          
+   8          u8 code TAB[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0xbf,0xff,0xc1,0x8e,0xc6,0X89,0x8c};
+   9          // 12---U 13---F 14---C  15---H 16---P
+  10          u8 disbuf[] = {0,1,2,3,4,5,6,7,8};
+  11          
+  12          u8 smg_cnt = 0;
+  13          u8 key_buf = 0;
+  14          
+  15          u16 temperature = 0;
+  16          
+  17          u8 mode = 0;
+  18          
+  19          u16 fre = 0;
+  20          u16 fre_tt;
+  21          bit fre_open = 0;
+  22          
+  23          u16 Vo = 0;
+  24          
+  25          u16 yuzhi = 100;
+  26          
+  27          u16 fre_temp;
+  28          u16 Vo_temp;
+  29          u16 temperature_temp;
+  30          
+  31          u16 dowm_tt = 0;
+  32          
+  33          u8 last_mode = 0;
+  34          u8 cnt_1ms = 0;
+  35          
+  36          bit led8_open = 0;
+  37          u8 led8_tt = 0;
+  38          
+  39          void Delay5ms()         //@12.000MHz
+  40          {
+  41   1              unsigned char i, j;
+  42   1      
+  43   1              i = 59;
+  44   1              j = 90;
+  45   1              do
+  46   1              {
+  47   2                      while (--j);
+  48   2              } while (--i);
+  49   1      }
+  50          
+  51          void set_port(u8 p2,u8 p0)
+  52          {
+  53   1              P0 = p0;
+  54   1              P2 &= 0X1F;
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 2   
+
+  55   1              P2 |= p2;
+  56   1              P0 = p0;
+  57   1              P2 &= 0X1F;
+  58   1      }
+  59          
+  60          void allinit(void)
+  61          {
+  62   1              set_port(0x80,0xff);
+  63   1              set_port(0xa0,0x00);
+  64   1              set_port(0xc0,0xff);
+  65   1              set_port(0xe0,0xff);
+  66   1      }
+  67          
+  68          void display(void)
+  69          {
+  70   1              // 0-温度 1-电压 2-频率 3-回显 4-设置
+  71   1              if(mode == 0)   // 温度
+  72   1              {
+  73   2                      disbuf[1] = 14;
+  74   2                      disbuf[2] = 11;
+  75   2                      disbuf[3] = 11;
+  76   2                      disbuf[4] = 11;
+  77   2                      disbuf[5] = temperature / 1000;
+  78   2                      disbuf[6] = temperature / 100 % 10;
+  79   2                      disbuf[7] = temperature / 10 % 10;
+  80   2                      disbuf[8] = temperature % 10;
+  81   2              }
+  82   1              
+  83   1              else if(mode == 1)      // 电压
+  84   1              {
+  85   2                      disbuf[1] = 12;
+  86   2                      disbuf[2] = 11;
+  87   2                      disbuf[3] = 11;
+  88   2                      disbuf[4] = 11;
+  89   2                      disbuf[5] = 11;
+  90   2                      disbuf[6] = 11; 
+  91   2                      disbuf[7] = Vo / 100 % 10;
+  92   2                      disbuf[8] = Vo / 10 % 10;       
+  93   2              }
+  94   1              else if(mode == 2)      // 频率
+  95   1              {
+  96   2                      disbuf[1] = 13;
+  97   2                      disbuf[2] = 11;
+  98   2                      disbuf[3] = 11;
+  99   2                      if(fre / 10000 % 10)
+ 100   2                      {
+ 101   3                              disbuf[4] = fre / 10000 % 10;
+ 102   3                              disbuf[5] = fre / 1000 % 10;
+ 103   3                              disbuf[6] = fre / 100 % 10;
+ 104   3                              disbuf[7] = fre / 10 % 10;
+ 105   3                              disbuf[8] = fre % 10;
+ 106   3                      }
+ 107   2                      else if(fre / 1000 % 10)
+ 108   2                      {
+ 109   3                              disbuf[4] = 11;
+ 110   3                              disbuf[5] = fre / 1000 % 10;
+ 111   3                              disbuf[6] = fre / 100 % 10;
+ 112   3                              disbuf[7] = fre / 10 % 10;
+ 113   3                              disbuf[8] = fre % 10;
+ 114   3                      }
+ 115   2                      else if(fre / 100 % 10)
+ 116   2                      {
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 3   
+
+ 117   3                              disbuf[4] = 11;
+ 118   3                              disbuf[5] = 11;
+ 119   3                              disbuf[6] = fre / 100 % 10;
+ 120   3                              disbuf[7] = fre / 10 % 10;
+ 121   3                              disbuf[8] = fre % 10;
+ 122   3                      }
+ 123   2                      else if(fre / 10 % 10)
+ 124   2                      {
+ 125   3                              disbuf[4] = 11;
+ 126   3                              disbuf[5] = 11;
+ 127   3                              disbuf[6] = 11;
+ 128   3                              disbuf[7] = fre / 10 % 10;
+ 129   3                              disbuf[8] = fre % 10;
+ 130   3                      }
+ 131   2                      else
+ 132   2                      {
+ 133   3                              disbuf[4] = 1;
+ 134   3                              disbuf[5] = 11;
+ 135   3                              disbuf[6] = 11;
+ 136   3                              disbuf[7] = 11;
+ 137   3                              disbuf[8] = fre % 10;
+ 138   3                      }
+ 139   2              }
+ 140   1              else if(mode == 3)
+ 141   1              {
+ 142   2                      if(last_mode == 0)
+ 143   2                      {
+ 144   3                              disbuf[1] = 15;
+ 145   3                              disbuf[2] = 14;
+ 146   3                              disbuf[3] = 11;
+ 147   3                              disbuf[4] = 11;
+ 148   3                              disbuf[5] = temperature_temp / 1000;
+ 149   3                              disbuf[6] = temperature_temp / 100 % 10;
+ 150   3                              disbuf[7] = temperature_temp / 10 % 10;
+ 151   3                              disbuf[8] = temperature_temp % 10;
+ 152   3                      }
+ 153   2                      else if(last_mode == 1)
+ 154   2                      {
+ 155   3                              disbuf[1] = 15;
+ 156   3                              disbuf[2] = 12;
+ 157   3                              disbuf[3] = 11;
+ 158   3                              disbuf[4] = 11;
+ 159   3                              disbuf[5] = 11;
+ 160   3                              disbuf[6] = 11;
+ 161   3                              disbuf[7] = Vo_temp / 100 % 10;
+ 162   3                              disbuf[8] = Vo_temp / 10 % 10;
+ 163   3                      }
+ 164   2                      else if(last_mode == 2)
+ 165   2                      {
+ 166   3                              disbuf[1] = 13;
+ 167   3                              disbuf[2] = 11;
+ 168   3                              disbuf[3] = 11;
+ 169   3                              if(fre / 10000 % 10)
+ 170   3                              {
+ 171   4                                      disbuf[4] = fre_temp / 10000 % 10;
+ 172   4                                      disbuf[5] = fre_temp / 1000 % 10;
+ 173   4                                      disbuf[6] = fre_temp / 100 % 10;
+ 174   4                                      disbuf[7] = fre_temp / 10 % 10;
+ 175   4                                      disbuf[8] = fre_temp % 10;
+ 176   4                              }
+ 177   3                              else if(fre / 1000 % 10)
+ 178   3                              {
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 4   
+
+ 179   4                                      disbuf[4] = 11;
+ 180   4                                      disbuf[5] = fre_temp / 1000 % 10;
+ 181   4                                      disbuf[6] = fre_temp / 100 % 10;
+ 182   4                                      disbuf[7] = fre_temp / 10 % 10;
+ 183   4                                      disbuf[8] = fre_temp % 10;
+ 184   4                              }
+ 185   3                              else if(fre / 100 % 10)
+ 186   3                              {
+ 187   4                                      disbuf[4] = 11;
+ 188   4                                      disbuf[5] = 11;
+ 189   4                                      disbuf[6] = fre_temp / 100 % 10;
+ 190   4                                      disbuf[7] = fre_temp / 10 % 10;
+ 191   4                                      disbuf[8] = fre_temp % 10;
+ 192   4                              }
+ 193   3                              else if(fre / 10 % 10)
+ 194   3                              {
+ 195   4                                      disbuf[4] = 11;
+ 196   4                                      disbuf[5] = 11;
+ 197   4                                      disbuf[6] = 11;
+ 198   4                                      disbuf[7] = fre_temp / 10 % 10;
+ 199   4                                      disbuf[8] = fre_temp % 10;
+ 200   4                              }
+ 201   3                              else
+ 202   3                              {
+ 203   4                                      disbuf[4] = 1;
+ 204   4                                      disbuf[5] = 11;
+ 205   4                                      disbuf[6] = 11;
+ 206   4                                      disbuf[7] = 11;
+ 207   4                                      disbuf[8] = fre_temp % 10;
+ 208   4                              }
+ 209   3                      }
+ 210   2              }
+ 211   1              else if(mode == 4)
+ 212   1              {
+ 213   2                      disbuf[1] = 16;
+ 214   2                      disbuf[2] = 11;
+ 215   2                      disbuf[3] = 11;
+ 216   2                      disbuf[4] = 11;
+ 217   2                      disbuf[5] = 11;
+ 218   2                      disbuf[6] = 11;
+ 219   2                      disbuf[7] = yuzhi / 100;
+ 220   2                      disbuf[8] = yuzhi / 10 % 10;            
+ 221   2              }
+ 222   1              
+ 223   1      }
+ 224          
+ 225          void BTN(void)
+ 226          {
+ 227   1              u8 key_temp;
+ 228   1              key_temp = P3 & 0X0F;
+ 229   1              if(key_temp != 0x0f && key_buf == 0)
+ 230   1              {
+ 231   2                      Delay5ms();
+ 232   2                      key_temp = P3 & 0X0F;
+ 233   2                      if(key_temp != 0x0f && key_buf == 0)
+ 234   2                      {
+ 235   3                              key_buf = key_temp;
+ 236   3                      }
+ 237   2              }
+ 238   1              else if(key_temp == 0x0f && key_buf)
+ 239   1              {
+ 240   2                      Delay5ms();
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 5   
+
+ 241   2                      key_temp = P3 & 0X0F;
+ 242   2                      if(key_temp == 0x0f && key_buf)
+ 243   2                      {
+ 244   3                              // 0-温度 1-电压 2-频率 3-回显 4-设置
+ 245   3                              switch(key_buf)
+ 246   3                              {
+ 247   4                                      case 0x0e: // 设置
+ 248   4                                              if(mode != 4)
+ 249   4                                              {
+ 250   5                                                      mode = 4;
+ 251   5                                                      yuzhi = 10;
+ 252   5                                              }
+ 253   4                                              else 
+ 254   4                                              {
+ 255   5                                                      mode = 0;
+ 256   5                                                      write_eeprom(0x06,yuzhi / 256);
+ 257   5                                                      Delay5ms();
+ 258   5                                                      write_eeprom(0x07,yuzhi % 256);
+ 259   5                                                      Delay5ms();
+ 260   5                                              }
+ 261   4                                      break;
+ 262   4                                      case 0x0d: // 数据回显
+ 263   4                                              if(mode != 3 && mode != 4)
+ 264   4                                              {
+ 265   5                                                      last_mode = mode;
+ 266   5                                                      mode = 3;
+ 267   5                                                      fre_temp = read_eeprom(0x00);
+ 268   5                                                      Delay5ms();
+ 269   5                                                      fre_temp = (fre_temp * 256) + read_eeprom(0x01);
+ 270   5                                                      Delay5ms();
+ 271   5                                                      temperature_temp = read_eeprom(0x02);
+ 272   5                                                      Delay5ms();
+ 273   5                                                      temperature_temp = (temperature_temp * 256) + read_eeprom(0x03);
+ 274   5                                                      Delay5ms();
+ 275   5                                                      Vo_temp = read_eeprom(0x04);
+ 276   5                                                      Delay5ms();
+ 277   5                                                      Vo_temp = (Vo_temp * 256) + read_eeprom(0x05);
+ 278   5                                                      Delay5ms();
+ 279   5                                              }
+ 280   4                                              else if(mode == 4)
+ 281   4                                              {
+ 282   5                                                      dowm_tt = 0;
+ 283   5                                                      cnt_1ms = 0;
+ 284   5                                                      if(yuzhi < 500)
+ 285   5                                                              yuzhi += 10;                                            
+ 286   5                                              }
+ 287   4                                      break;
+ 288   4                                      case 0x0b:      // 存储
+ 289   4                                              if(mode != 3 && mode != 4)
+ 290   4                                              {
+ 291   5                                                      write_eeprom(0x00,fre / 256);
+ 292   5                                                      Delay5ms();
+ 293   5                                                      write_eeprom(0x01,fre % 256);
+ 294   5                                                      Delay5ms();
+ 295   5                                                      write_eeprom(0x02,temperature / 256);
+ 296   5                                                      Delay5ms();
+ 297   5                                                      write_eeprom(0x03,temperature % 256);
+ 298   5                                                      Delay5ms();
+ 299   5                                                      write_eeprom(0x04,Vo / 256);
+ 300   5                                                      Delay5ms();
+ 301   5                                                      write_eeprom(0x05,Vo % 256);
+ 302   5                                                      Delay5ms();
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 6   
+
+ 303   5                                              }
+ 304   4                                      break;
+ 305   4                                      case 0x07:      // 切换
+ 306   4                                              switch(mode)
+ 307   4                                              {
+ 308   5                                                      case 0:
+ 309   5                                                              mode = 1;
+ 310   5                                                      break;
+ 311   5                                                      case 1: 
+ 312   5                                                              mode = 2;
+ 313   5                                                      break;
+ 314   5                                                      case 2: 
+ 315   5                                                              mode = 0;
+ 316   5                                                      case 3:
+ 317   5                                                              mode = 0;
+ 318   5                                                      break;
+ 319   5                                              }
+ 320   4                                      break;
+ 321   4                              }
+ 322   3                              key_buf = 0;
+ 323   3                      }
+ 324   2              }
+ 325   1      }
+ 326          
+ 327          void Timer2Init(void)           //1毫秒@12.000MHz
+ 328          {
+ 329   1              AUXR |= 0x04;           //定时器时钟1T模式
+ 330   1              T2L = 0x20;             //设置定时初值
+ 331   1              T2H = 0xD1;             //设置定时初值
+ 332   1              AUXR |= 0x10;           //定时器2开始计时
+ 333   1      }
+ 334          
+ 335          void timer2(void)interrupt 12
+ 336          {
+ 337   1              u8 led_state = 0xff;
+ 338   1              
+ 339   1              set_port(0xe0,TAB[11]);
+ 340   1              set_port(0xc0,0x01 << smg_cnt);
+ 341   1              if(((mode == 3 && last_mode == 0) || mode == 0) && smg_cnt == 5)
+ 342   1              {
+ 343   2                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]] & 0x7f);
+ 344   2              }
+ 345   1              else if((mode == 1 || mode == 4 || (mode == 3 && last_mode == 1))&& smg_cnt == 6)
+ 346   1              {
+ 347   2                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]] & 0x7f);
+ 348   2              }
+ 349   1              else
+ 350   1              {
+ 351   2                      set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);
+ 352   2              }
+ 353   1              if(++smg_cnt >= 8) smg_cnt = 0;
+ 354   1              
+ 355   1              if(++fre_tt >= 1000)
+ 356   1              {
+ 357   2                      TR0 = 0;
+ 358   2                      fre_tt = 0;
+ 359   2                      fre = (TH0 << 8) | TL0;
+ 360   2                      TH0 = 0;
+ 361   2                      TL0 = 0;
+ 362   2                      TR0 = 1;
+ 363   2              }
+ 364   1              
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 7   
+
+ 365   1              if(mode == 4 && key_buf == 0X0d)
+ 366   1              {                       
+ 367   2                      if(dowm_tt < 800) 
+ 368   2                              dowm_tt++;
+ 369   2                      else
+ 370   2                      {
+ 371   3                              if(yuzhi < 500 && mode == 4 && ++cnt_1ms >= 100)
+ 372   3                              {
+ 373   4                                      cnt_1ms = 0;
+ 374   4                                      yuzhi += 10;
+ 375   4                              }
+ 376   3                      }
+ 377   2              }
+ 378   1              
+ 379   1              if(mode == 0)
+ 380   1                      led_state &= 0xfe;
+ 381   1              else if(mode == 1)
+ 382   1                      led_state &= 0xfd;
+ 383   1              else if(mode == 2)
+ 384   1                      led_state &= 0xfb;
+ 385   1              
+ 386   1              if(Vo > yuzhi && (mode == 0 || mode == 2 || mode == 1) && ++led8_tt >= 200)
+ 387   1              {
+ 388   2                      led8_tt = 0;
+ 389   2                      led8_open = !led8_open;
+ 390   2              }
+ 391   1              if(Vo < yuzhi || (mode != 0 && mode != 2 && mode != 1))
+ 392   1              {
+ 393   2                      led8_open = 0;
+ 394   2              }
+ 395   1              if(led8_open)
+ 396   1                      led_state &= 0x7f;
+ 397   1              
+ 398   1              set_port(0x80,led_state);
+ 399   1      }
+ 400          
+ 401          void Timer0Init(void)           //1毫秒@12.000MHz
+ 402          {
+ 403   1              AUXR |= 0x80;           //定时器时钟1T模式
+ 404   1              TMOD &= 0xF0;           //设置定时器模式
+ 405   1              TMOD |= 0X04;
+ 406   1              TL0 = 0;                //设置定时初值
+ 407   1              TH0 = 0;                //设置定时初值
+ 408   1              TF0 = 0;                //清除TF0标志
+ 409   1              TR0 = 0;                //定时器0关闭
+ 410   1      }
+ 411          
+ 412          
+ 413          void main(void)
+ 414          {
+ 415   1              allinit();
+ 416   1              Timer2Init();
+ 417   1              Timer0Init();
+ 418   1              IE2 |= 0X04;
+ 419   1              EA = 1;
+ 420   1              
+ 421   1              fre_temp = read_eeprom(0x00);
+ 422   1              Delay5ms();
+ 423   1              fre_temp = (fre_temp * 256) + read_eeprom(0x01);
+ 424   1              Delay5ms();
+ 425   1              temperature_temp = read_eeprom(0x02);
+ 426   1              Delay5ms();
+C51 COMPILER V9.55   MAIN                                                                  11/08/2020 18:19:45 PAGE 8   
+
+ 427   1              temperature_temp = (temperature_temp * 256) + read_eeprom(0x03);
+ 428   1              Delay5ms();
+ 429   1              Vo_temp = read_eeprom(0x04);
+ 430   1              Delay5ms();
+ 431   1              Vo_temp = (Vo_temp * 256) + read_eeprom(0x05);
+ 432   1              Delay5ms();
+ 433   1              yuzhi = read_eeprom(0x06);
+ 434   1              Delay5ms();
+ 435   1              yuzhi = (yuzhi * 256) + read_eeprom(0x07);
+ 436   1              Delay5ms();
+ 437   1              
+ 438   1              while(1)
+ 439   1              {
+ 440   2                      BTN();
+ 441   2                      temperature = (u16)(rd_temperature() * 100);
+ 442   2                      Vo = read_pcf8591(3) * 1.96;
+ 443   2                      display();
+ 444   2              }
+ 445   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2071    ----
+   CONSTANT SIZE    =     17    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     33    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,503 @@
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <stc15f2k60s2.h>
+   2          #include <intrins.h>
+   3          #include "ds1302.h"
+   4          #include "onewire.h"
+   5          #include "iic.h"
+   6          #include <stdio.h>
+   7          
+   8          #define u8 unsigned char
+   9          #define u16 unsigned int
+  10          
+  11          #define get() (P3 & 0X3F) | ((P4 & 0X04) << 4) | ((P4 & 0X10) << 3)
+  12          
+  13          sbit RX = P1^1;
+  14          sbit TX = P1^0;
+  15          
+  16          u8 RX_buf[30];
+  17          bit tx_flag = 0;
+  18          u8 rx_cnt = 0;
+  19          u8 rx_tt = 0;
+  20          bit rx_open = 0;
+  21          
+  22          extern u8 TIME[];
+  23          
+  24          u8 code TAB[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0XBF,0XFF};
+  25          u8 disbuf[] = {0,1,2,3,4,5,6,7,8};
+  26          
+  27          u8 smg_cnt = 0;
+  28          u8 key_buf = 0;
+  29          u8 smg_tt = 0;
+  30          
+  31          u16 fre = 0;
+  32          u16 fre_tt = 0;
+  33          
+  34          u8 display_mode = 1;
+  35          
+  36          u16 distance = 0;
+  37          u8 wave_tt = 0;
+  38          bit wave_flag = 0;
+  39          
+  40          u16 flicker_tt = 0;
+  41          
+  42          u16 temperature = 0;
+  43          
+  44          u8 ad_out = 0;
+  45          u8 guang = 0;
+  46          u8 rb2 = 0;
+  47          
+  48          bit key_down = 0;
+  49          u16 key_down_tt = 0;
+  50          bit key_long = 0;
+  51          bit key_long_state = 0;
+  52          
+  53          bit read_mode = 0;
+  54          
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 2   
+
+  55          void Delay5ms()         //@12.000MHz
+  56          {
+  57   1              unsigned char i, j;
+  58   1      
+  59   1              i = 59;
+  60   1              j = 90;
+  61   1              do
+  62   1              {
+  63   2                      while (--j);
+  64   2              } while (--i);
+  65   1      }
+  66          
+  67          void Delay10us()                //@12.000MHz
+  68          {
+  69   1              unsigned char i;
+  70   1      
+  71   1              _nop_();
+  72   1              _nop_();
+  73   1              i = 27;
+  74   1              while (--i);
+  75   1      }
+  76          
+  77          
+  78          void display(void)
+  79          {
+  80   1              if(display_mode == 1)
+  81   1              {
+  82   2                      disbuf[1] = 11;
+  83   2                      disbuf[2] = 11;
+  84   2                      disbuf[3] = 10;
+  85   2                      disbuf[4] = fre / 10000 % 10;
+  86   2                      disbuf[5] = fre / 1000 % 10;
+  87   2                      disbuf[6] = fre / 100 % 10;
+  88   2                      disbuf[7] = fre / 10 % 10;
+  89   2                      disbuf[8] = fre % 10;
+  90   2              }
+  91   1              else if(display_mode == 2)
+  92   1              {
+  93   2                      disbuf[1] = 11;
+  94   2                      disbuf[2] = 11;
+  95   2                      disbuf[3] = 11;
+  96   2                      disbuf[4] = 11;
+  97   2                      disbuf[5] = 10;
+  98   2                      disbuf[6] = distance / 100 % 10;
+  99   2                      disbuf[7] = distance / 10 % 10;
+ 100   2                      disbuf[8] = distance % 10;
+ 101   2              }
+ 102   1              else if(display_mode == 3)
+ 103   1              {
+ 104   2                      disbuf[1] = TIME[0] / 16;
+ 105   2                      disbuf[2] = TIME[0] % 10;
+ 106   2                      disbuf[3] = 10;
+ 107   2                      disbuf[4] = TIME[1] / 16;
+ 108   2                      disbuf[5] = TIME[1] % 16;
+ 109   2                      disbuf[6] = 10;
+ 110   2                      disbuf[7] = TIME[2] / 16;
+ 111   2                      disbuf[8] = TIME[2] % 16;
+ 112   2              }
+ 113   1              else if(display_mode == 4)
+ 114   1              {
+ 115   2                      disbuf[1] = 11;
+ 116   2                      disbuf[2] = 11;
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 3   
+
+ 117   2                      disbuf[3] = 11;
+ 118   2                      disbuf[4] = 11;
+ 119   2                      disbuf[5] = temperature / 1000 % 10;
+ 120   2                      disbuf[6] = temperature / 100 % 10;
+ 121   2                      disbuf[7] = temperature / 10 % 10;
+ 122   2                      disbuf[8] = temperature % 10;
+ 123   2              }
+ 124   1              else if(display_mode == 5)
+ 125   1              {
+ 126   2                      disbuf[1] = 11;
+ 127   2                      disbuf[2] = 11;
+ 128   2                      disbuf[3] = 11;
+ 129   2                      disbuf[4] = 11;
+ 130   2                      disbuf[5] = 10;
+ 131   2                      if(read_mode)
+ 132   2                      {
+ 133   3                              disbuf[6] = rb2 / 100 % 10;
+ 134   3                              disbuf[7] = rb2 / 10 % 10;
+ 135   3                              disbuf[8] = rb2 % 10;
+ 136   3                      }
+ 137   2                      else
+ 138   2                      {
+ 139   3                              disbuf[6] = guang / 100 % 10;
+ 140   3                              disbuf[7] = guang / 10 % 10;
+ 141   3                              disbuf[8] = guang % 10;
+ 142   3                      }
+ 143   2              }
+ 144   1      }
+ 145          
+ 146          void set_port(u8 p2, u8 p0)
+ 147          {
+ 148   1              P0 = p0;
+ 149   1              P2 &= 0X1F;
+ 150   1              P2 |= p2;
+ 151   1              P0 = p0;
+ 152   1              P2 &= 0X1F;
+ 153   1      }
+ 154          
+ 155          void allinit(void)
+ 156          {
+ 157   1              set_port(0x80,0xff);
+ 158   1              set_port(0xa0,0x00);
+ 159   1              set_port(0xc0,0xff);
+ 160   1              set_port(0xe0,0xff);
+ 161   1      }
+ 162          
+ 163          /*----------------------------
+ 164          发送串口数据
+ 165          ----------------------------*/
+ 166          void SendData(u8 dat)
+ 167          {
+ 168   1          SBUF = dat;
+ 169   1              while(!TI);
+ 170   1              TI = 0;
+ 171   1      }
+ 172          
+ 173          void SendString(u8 *s)
+ 174          {
+ 175   1          while (*s)                  //检测字符串结束标志
+ 176   1          {
+ 177   2              SendData(*s++);         //发送当前字符
+ 178   2          }
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 4   
+
+ 179   1      }
+ 180          void key_scan(void)
+ 181          {
+ 182   1              u8 key_temp;
+ 183   1              P44 = 1; P42 = 1; P35 = 1; P33 = 0; P32 = 0;
+ 184   1              key_temp = get();
+ 185   1              P44 = 0; P42 = 0; P35 = 0; P33 = 1; P32 = 1;
+ 186   1              key_temp |= get();
+ 187   1              key_temp |= 0x13;
+ 188   1              if(key_temp != 0xff && key_buf == 0)
+ 189   1              {
+ 190   2                      Delay5ms();
+ 191   2                      P44 = 1; P42 = 1; P35 = 1; P33 = 0; P32 = 0;
+ 192   2                      key_temp = get();
+ 193   2                      P44 = 0; P42 = 0; P35 = 0; P33 = 1; P32 = 1;
+ 194   2                      key_temp |= get();
+ 195   2                      key_temp |= 0x13;
+ 196   2                      if(key_temp != 0xff && key_buf == 0)
+ 197   2                      {
+ 198   3                              key_buf = key_temp;
+ 199   3                              if(key_buf == 0xd7)
+ 200   3                              {
+ 201   4                                      key_down = 1;
+ 202   4                                      key_down_tt = 0;
+ 203   4                              }
+ 204   3                      }
+ 205   2              }
+ 206   1              else if(key_temp == 0xff && key_buf != 0)
+ 207   1              {
+ 208   2                      Delay5ms();
+ 209   2                      P44 = 1; P42 = 1; P35 = 1; P33 = 0; P32 = 0;
+ 210   2                      key_temp = get();
+ 211   2                      P44 = 0; P42 = 0; P35 = 0; P33 = 1; P32 = 1;
+ 212   2                      key_temp |= get();
+ 213   2                      key_temp |= 0x13;
+ 214   2                      if(key_temp == 0xff && key_buf != 0)
+ 215   2                      {
+ 216   3                              switch(key_buf)
+ 217   3                              {
+ 218   4                                      case 0x7b:      // s5
+ 219   4                                              display_mode = 1;
+ 220   4                                              TMOD |= 0x04;           //设置定时器模式
+ 221   4                                      break;
+ 222   4                                      case 0x77:      // s4
+ 223   4                                              display_mode = 2;
+ 224   4                                              wave_flag = 1;
+ 225   4                                      break;
+ 226   4                                      case 0xbb: // S9
+ 227   4                                              display_mode = 3;
+ 228   4                                      break;
+ 229   4                                      case 0xb7:      // s8
+ 230   4                                              display_mode = 4;
+ 231   4                                      break;
+ 232   4                                      case 0xdb:      // s13
+ 233   4                                              display_mode = 5;
+ 234   4                                              read_mode = !read_mode;
+ 235   4                                      break;
+ 236   4                                      case 0xd7:
+ 237   4                                              if(key_long_state == 1)
+ 238   4                                              {
+ 239   5                                                      key_long_state = 0;
+ 240   5                                              }
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 5   
+
+ 241   4                                              else if(read_mode && display_mode == 5)
+ 242   4                                              {
+ 243   5                                                      write_pcf8591(rb2);
+ 244   5                                                      Delay5ms();
+ 245   5                                                      SendString("ok!!!\r\n");
+ 246   5                                              }
+ 247   4                                              key_long = 0;
+ 248   4                                              key_down = 0;
+ 249   4                                              key_down_tt = 0;
+ 250   4                                      break;
+ 251   4                                      
+ 252   4                              }
+ 253   3                              key_buf = 0;
+ 254   3                      }
+ 255   2              }
+ 256   1              
+ 257   1              if(key_long)
+ 258   1              {
+ 259   2                      sprintf(RX_buf,"%02x:%2x:%2x\r\n",(u16)TIME[0],(u16)TIME[1],(u16)TIME[2]);
+ 260   2                      SendString(RX_buf);
+ 261   2                      sprintf(RX_buf,"wd:%u,rb2:%u,guang:%u\r\n",(u16)temperature,(u16)rb2,(u16)guang);
+ 262   2                      SendString(RX_buf);
+ 263   2                      key_long = 0;
+ 264   2                      key_long_state = 1;
+ 265   2              }
+ 266   1      }
+ 267          
+ 268          void Timer2Init(void)           //100微秒@12.000MHz
+ 269          {
+ 270   1              AUXR |= 0x04;           //定时器时钟1T模式
+ 271   1              T2L = 0x50;             //设置定时初值
+ 272   1              T2H = 0xFB;             //设置定时初值
+ 273   1              AUXR |= 0x10;           //定时器2开始计时
+ 274   1      }
+ 275          
+ 276          void Timer0Init(void)           //100微秒@12.000MHz
+ 277          {
+ 278   1              AUXR &= 0x7F;           //定时器时钟12T模式
+ 279   1              TMOD &= 0xF0;           //设置定时器模式
+ 280   1              TMOD |= 0x04;           //设置定时器模式
+ 281   1              TL0 = 0;                //设置定时初值
+ 282   1              TH0 = 0;                //设置定时初值
+ 283   1              TF0 = 0;                //清除TF0标志
+ 284   1              TR0 = 0;                //定时器0开始计时
+ 285   1      }
+ 286          
+ 287          void tiemr2(void) interrupt 12
+ 288          {
+ 289   1              bit smg_state = 0;
+ 290   1              if(++smg_tt == 10)
+ 291   1              {
+ 292   2                      smg_tt = 0;
+ 293   2                      set_port(0xe0,TAB[11]);
+ 294   2                      set_port(0xc0, 0x01 << smg_cnt);
+ 295   2                      if(++flicker_tt <= 250)
+ 296   2                      {
+ 297   3                              smg_state = 1;
+ 298   3                      }
+ 299   2                      else if(flicker_tt >= 500)
+ 300   2                      {
+ 301   3                              flicker_tt = 0;
+ 302   3                              smg_state = 0;
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 6   
+
+ 303   3                      }
+ 304   2                      if((smg_cnt == 2 || smg_cnt == 5) && smg_state == 0 && display_mode == 3)
+ 305   2                      {
+ 306   3                              set_port(0xe0,TAB[11]);
+ 307   3                      }
+ 308   2                      else if(display_mode == 4 && smg_cnt == 5)
+ 309   2                      {
+ 310   3                              set_port(0xe0, TAB[disbuf[smg_cnt + 1]] & 0x7f);        
+ 311   3                      }
+ 312   2                      else 
+ 313   2                      {
+ 314   3                              set_port(0xe0, TAB[disbuf[smg_cnt + 1]]);       
+ 315   3                      }
+ 316   2                      if(++smg_cnt >= 8) smg_cnt = 0;
+ 317   2                      
+ 318   2                      if(display_mode == 1 && ++fre_tt >= 1000)
+ 319   2                      {
+ 320   3                              TR0 = 0;
+ 321   3                              fre_tt = 0;
+ 322   3                              fre = ((TH0 << 8) + TL0);
+ 323   3                              TH0 = 0;
+ 324   3                              TL0 = 0;
+ 325   3                              TR0 = 1;
+ 326   3                      }
+ 327   2                      
+ 328   2                      if(display_mode == 2 && ++wave_tt >= 250)
+ 329   2                      {
+ 330   3                              wave_tt = 0;
+ 331   3                              wave_flag = 1;
+ 332   3                      }
+ 333   2                      
+ 334   2                      if(rx_open && ++rx_tt >= 80)
+ 335   2                      {
+ 336   3                              rx_tt = 0;
+ 337   3                              rx_open = 0;
+ 338   3                              RX_buf[rx_cnt++] = '\r';
+ 339   3                              RX_buf[rx_cnt++] = '\n';
+ 340   3                              RX_buf[rx_cnt++] = '\0';
+ 341   3                              rx_cnt = 0;
+ 342   3                              tx_flag = 1;
+ 343   3                      }
+ 344   2                      
+ 345   2                      if(key_down && ++key_down_tt >= 500)
+ 346   2                      {
+ 347   3                              key_down_tt = 0;
+ 348   3                              key_long = 1;
+ 349   3                      }
+ 350   2              }
+ 351   1      }
+ 352          
+ 353          void UartInit(void)             //1200bps@12.000MHz
+ 354          {
+ 355   1              SCON = 0x50;            //8位数据,可变波特率
+ 356   1              AUXR |= 0x40;           //定时器1时钟为Fosc,即1T
+ 357   1              AUXR &= 0xFE;           //串口1选择定时器1为波特率发生器
+ 358   1              TMOD &= 0x0F;           //设定定时器1为16位自动重装方式
+ 359   1              TL1 = 0x3C;             //设定定时初值
+ 360   1              TH1 = 0xF6;             //设定定时初值
+ 361   1              ET1 = 0;                //禁止定时器1中断
+ 362   1              TR1 = 1;                //启动定时器1
+ 363   1      }
+ 364          /*----------------------------
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 7   
+
+ 365          UART 中断服务程序
+ 366          -----------------------------*/
+ 367          void Uart() interrupt 4
+ 368          {
+ 369   1          if (RI)
+ 370   1          {
+ 371   2              RI = 0;                 //清除RI位
+ 372   2                      if(rx_cnt == 0)
+ 373   2                      {
+ 374   3                              rx_open = 1;
+ 375   3                              rx_tt = 0;
+ 376   3                      }
+ 377   2              RX_buf[rx_cnt++] = SBUF;
+ 378   2          }
+ 379   1      }
+ 380          
+ 381          
+ 382          void wave_rev(void)
+ 383          {
+ 384   1              u8 num = 20;
+ 385   1              TMOD &= 0xF0;           //设置定时器模式
+ 386   1              TR0 = 0;                //定时器0停止
+ 387   1              while(num--)
+ 388   1              {
+ 389   2                      TX = 0;
+ 390   2                      Delay10us();
+ 391   2                      TX = 1;
+ 392   2                      Delay10us();
+ 393   2              }
+ 394   1              TH0 = 0;
+ 395   1              TL0 = 0;
+ 396   1              TR0 = 1;
+ 397   1              while(RX && !TF0);
+ 398   1              TR0 = 0;
+ 399   1              if(TF0)
+ 400   1              {
+ 401   2                      TF0 = 0;
+ 402   2                      distance = 999;
+ 403   2              }
+ 404   1              else 
+ 405   1              {
+ 406   2                      distance = ((TH0 << 8) | (TL0)) * 0.017;
+ 407   2              }
+ 408   1      }
+ 409          
+ 410          void main(void)
+ 411          {
+ 412   1              u8 temp = 0;
+ 413   1              allinit();
+ 414   1              Timer2Init();
+ 415   1              Timer0Init();
+ 416   1              IE2 |= 0X04;
+ 417   1              UartInit();
+ 418   1              ES = 1;
+ 419   1              EA = 1;
+ 420   1              ds1302_init();
+ 421   1              write_eeprom(0x00,234);
+ 422   1              Delay5ms();
+ 423   1              temp = read_eeprom(0x00);
+ 424   1              disbuf[1] = temp / 100;
+ 425   1              disbuf[2] = temp / 10 % 10;
+ 426   1              disbuf[3] = temp % 10;
+C51 COMPILER V9.55   MAIN                                                                  11/13/2020 23:52:17 PAGE 8   
+
+ 427   1              disbuf[4] = 10;
+ 428   1              while(1)
+ 429   1              {
+ 430   2                      
+ 431   2                      key_scan();
+ 432   2                      
+ 433   2                      if(wave_flag && display_mode == 2)
+ 434   2                      {
+ 435   3                              wave_flag = 0;
+ 436   3                              wave_rev();
+ 437   3                      }
+ 438   2                      if(display_mode == 3)
+ 439   2                      {
+ 440   3                              ds1302_get();
+ 441   3                      }
+ 442   2                      if(display_mode == 4)
+ 443   2                      {
+ 444   3                              temperature = rd_temperature();
+ 445   3                      }
+ 446   2                      if(display_mode == 5)
+ 447   2                      {
+ 448   3                              if(read_mode)
+ 449   3                              {
+ 450   4                                      rb2 = read_pcf8591(3);
+ 451   4                              }
+ 452   3                              else
+ 453   3                              {
+ 454   4                                      guang = read_pcf8591(1);
+ 455   4                              }
+ 456   3                      }
+ 457   2                      if(tx_flag)
+ 458   2                      {
+ 459   3                              tx_flag = 0;
+ 460   3                              SendString(RX_buf);
+ 461   3                      }
+ 462   2                      
+ 463   2                      display();
+ 464   2              }
+ 465   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1668    ----
+   CONSTANT SIZE    =     59    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     61       3
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      7       1
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

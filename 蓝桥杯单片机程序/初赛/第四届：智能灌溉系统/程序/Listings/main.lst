@@ -1,0 +1,282 @@
+C51 COMPILER V9.55   MAIN                                                                  03/24/2020 21:15:47 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <STC15F2K60S2.H>
+   2          #include "iic.h"
+   3          #include "ds1302.h"
+   4          #define u8 unsigned char 
+   5          #define u16 unsigned int
+   6          u8 code LED[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0xbf,0xff};
+   7          u8 yi=0,er=8,san=10,si=3,wu=0,liu=10,qi=9,ba=9,zidong=1,shidu,fazhi=50,shezhi=0,flag=0,relay=0;
+   8          extern unsigned char Time[];
+   9          void INIT(void)
+  10          {
+  11   1        P2=0XA0;
+  12   1        P0=0X00;
+  13   1        
+  14   1        P2=0X80;
+  15   1        P0=0XFF;
+  16   1        
+  17   1        P2=0XC0;
+  18   1        P0=0XFF;
+  19   1        P2=0XFF;
+  20   1        P0=0XFF;
+  21   1      }
+  22          void buzz_open(void)
+  23          {
+  24   1          P2=0XA0;
+  25   1          P0|=0X40;
+  26   1      }
+  27          void buzz_close(void)
+  28          {
+  29   1          P2=0XA0;
+  30   1          P0&=0Xbf;
+  31   1      }
+  32          void relay_open(void)
+  33          {
+  34   1          P2=0XA0;
+  35   1          P0|=0X10;
+  36   1      }
+  37          void relay_close(void)
+  38          {
+  39   1          P2=0XA0;
+  40   1          P0&=0Xef;
+  41   1      }
+  42          void delay_ms(u16 ms)
+  43          {
+  44   1        u16 i,j;
+  45   1        for(i=ms ; i>0 ; i--)
+  46   1          for(j=845 ; j>0 ; j--);
+  47   1      }
+  48          void display(void)
+  49          {
+  50   1        P2=0XC0;
+  51   1        P0=0X01;
+  52   1        P2=0XFF;
+  53   1        P0=LED[yi];
+  54   1        delay_ms(1);
+C51 COMPILER V9.55   MAIN                                                                  03/24/2020 21:15:47 PAGE 2   
+
+  55   1        
+  56   1        P2=0XC0;
+  57   1        P0=0X02;
+  58   1        P2=0XFF;
+  59   1        P0=LED[er];
+  60   1        delay_ms(1);
+  61   1        
+  62   1        P2=0XC0;
+  63   1        P0=0X04;
+  64   1        P2=0XFF;
+  65   1        P0=LED[san];
+  66   1        delay_ms(1);
+  67   1        
+  68   1        P2=0XC0;
+  69   1        P0=0X08;
+  70   1        P2=0XFF;
+  71   1        P0=LED[si];
+  72   1        delay_ms(1);
+  73   1        
+  74   1        P2=0XC0;
+  75   1        P0=0X10;
+  76   1        P2=0XFF;
+  77   1        P0=LED[wu];
+  78   1        delay_ms(1);
+  79   1        
+  80   1        P2=0XC0;
+  81   1        P0=0X20;
+  82   1        P2=0XFF;
+  83   1        P0=LED[liu];
+  84   1        delay_ms(1);
+  85   1        
+  86   1        P2=0XC0;
+  87   1        P0=0X40;
+  88   1        P2=0XFF;
+  89   1        P0=LED[qi];
+  90   1        delay_ms(1);
+  91   1        
+  92   1        P2=0XC0;
+  93   1        P0=0X80;
+  94   1        P2=0XFF;
+  95   1        P0=LED[ba];
+  96   1        delay_ms(1);
+  97   1      }
+  98          void KEY_BTN(void)
+  99          {
+ 100   1        if(P30==0)
+ 101   1        {
+ 102   2          delay_ms(5);
+ 103   2          if(P30==0)
+ 104   2          {
+ 105   3            zidong=!zidong;
+ 106   3          }
+ 107   2          while(!P30);
+ 108   2        }
+ 109   1        if(P31==0)
+ 110   1        {
+ 111   2          delay_ms(5);
+ 112   2          if(P31==0)
+ 113   2          {
+ 114   3            if(!zidong)
+ 115   3            {
+ 116   4              flag=!flag;
+C51 COMPILER V9.55   MAIN                                                                  03/24/2020 21:15:47 PAGE 3   
+
+ 117   4            }
+ 118   3            else
+ 119   3            {
+ 120   4              if(!shezhi)
+ 121   4              {
+ 122   5                shezhi=1;
+ 123   5                yi=10;
+ 124   5                er=10;
+ 125   5                san=11;
+ 126   5                si=11;
+ 127   5                wu=11;
+ 128   5                liu=11;
+ 129   5              }
+ 130   4              else
+ 131   4              {
+ 132   5                shezhi=0;
+ 133   5                Write_AT24C02(123,0x0a);
+ 134   5                delay_ms(5);
+ 135   5                //temp=Read_AT24C02(0x0a);
+ 136   5              }
+ 137   4            }
+ 138   3          }
+ 139   2          while(!P31);
+ 140   2        }
+ 141   1        if(P32==0)
+ 142   1        {
+ 143   2          delay_ms(5);
+ 144   2          if(P32==0)
+ 145   2          {
+ 146   3            if(!zidong)
+ 147   3            {
+ 148   4              relay=1;
+ 149   4            }
+ 150   3            else
+ 151   3            {
+ 152   4              if(shezhi)
+ 153   4              {
+ 154   5                fazhi++;
+ 155   5              }
+ 156   4            }
+ 157   3          }
+ 158   2          while(!P32);
+ 159   2        }
+ 160   1        if(P33==0)
+ 161   1        {
+ 162   2          delay_ms(5);
+ 163   2          if(P33==0)
+ 164   2          {
+ 165   3            if(!zidong)
+ 166   3            {
+ 167   4              relay=0;
+ 168   4            }
+ 169   3            else
+ 170   3            {
+ 171   4              if(shezhi)
+ 172   4              {
+ 173   5                fazhi--;
+ 174   5              }
+ 175   4            }
+ 176   3          }
+ 177   2          while(!P33);
+ 178   2        }
+C51 COMPILER V9.55   MAIN                                                                  03/24/2020 21:15:47 PAGE 4   
+
+ 179   1      }
+ 180          void main(void)
+ 181          {
+ 182   1      //  u8 temp;
+ 183   1        INIT();
+ 184   1        Ds1302_Init();
+ 185   1        while(1)
+ 186   1        { 
+ 187   2          
+ 188   2          if(shezhi)
+ 189   2          {
+ 190   3            qi=fazhi/10;
+ 191   3            ba=fazhi%10;
+ 192   3          }
+ 193   2          else
+ 194   2          {
+ 195   3            DS1302_Timeget();
+ 196   3            si=Time[1]/16;wu=Time[1]%16;san=10;
+ 197   3            yi=Time[2]/16;er=Time[2]%16;liu=11;
+ 198   3            shidu=Read_PCF8591(0X03);
+ 199   3            shidu=shidu*0.39;
+ 200   3            qi=shidu/10;
+ 201   3            ba=shidu%10;
+ 202   3            if(zidong)
+ 203   3            {
+ 204   4              flag=0;
+ 205   4              relay=0;
+ 206   4              P2=0X80;
+ 207   4              P0=0XFE;
+ 208   4              buzz_close();
+ 209   4              if(shidu<fazhi)
+ 210   4              {
+ 211   5                relay_open();
+ 212   5              }
+ 213   4              else
+ 214   4              {
+ 215   5                relay_close();
+ 216   5              }
+ 217   4            }
+ 218   3            else
+ 219   3            {
+ 220   4              P2=0X80;
+ 221   4              P0=0XFD;
+ 222   4              if(shidu<fazhi)
+ 223   4              {
+ 224   5                if(flag)
+ 225   5                {
+ 226   6                  buzz_close();
+ 227   6                }
+ 228   5                else
+ 229   5                {
+ 230   6                  buzz_open();
+ 231   6                }
+ 232   5              }
+ 233   4              else
+ 234   4              {
+ 235   5                buzz_close();
+ 236   5              }
+ 237   4              if(!relay)
+ 238   4              {
+ 239   5                relay_close();
+ 240   5              }
+C51 COMPILER V9.55   MAIN                                                                  03/24/2020 21:15:47 PAGE 5   
+
+ 241   4              else
+ 242   4              {
+ 243   5                relay_open();
+ 244   5              }
+ 245   4            }
+ 246   3          }
+ 247   2          KEY_BTN();
+ 248   2          display();
+ 249   2        }
+ 250   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    566    ----
+   CONSTANT SIZE    =     12    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     14    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,5 @@
+".\Objects\MyMain.obj",
+".\Objects\iic.obj",
+".\Objects\ds1302.obj" 
+TO ".\Objects\MyMain" 
+PRINT(".\Listings\MyMain.m51") RAMSIZE(256) 

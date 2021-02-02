@@ -1,0 +1,468 @@
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 1   
+
+
+C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
+                    -.lst) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include <stc15f2k60s2.h>
+   2          #include "onewire.h"
+   3          #include "ds1302.h"
+   4          #include "iic.h"
+   5          #include "intrins.h"
+   6          #include "string.h"
+   7          
+   8          #define u8 unsigned char
+   9          #define u16 unsigned int
+  10          
+  11          u8 str1[] = {"{20-20%}{23-50-00}{"};
+  12          u8 str2[] = {"}\r\n"};
+  13          
+  14          u8 code TAB[] = {0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0xbf,0xff,0xc6,0x89}; // 12表示C,13--H
+  15          u8 disbuf[] = {0,11,11,11,11,10,6,7,8};
+  16          
+  17          u8 key_buf = 0;
+  18          u8 smg_cnt = 0;
+  19          
+  20          bit busy;
+  21          bit uartsend_open = 0;
+  22          bit uartsend_flag = 0;
+  23          u16 uart_tt = 0;
+  24          unsigned char UartRec[20];
+  25          u8 uartrec_cnt = 0;
+  26          u8 guang;
+  27          
+  28          bit uartrec_flag = 0;
+  29          bit cmd_corecct = 0;
+  30          u8 uartrec_tt = 0;
+  31          
+  32          u8 display_mode = 0;    // 默认0显示温湿度，1显示时间，2显示最近一次物体停留的时间
+  33          
+  34          u8 H;
+  35          
+  36          u8 work_mode = 0;       // 0表示自动传输，1表示自动记录，上电默认自动传输
+  37          
+  38          u16 stay_time = 0;
+  39          u16 stay_time_now = 0;
+  40          u16 stay_tt = 0;
+  41          u8 coming_flag = 0;
+  42          u8 stay_flag = 0;
+  43          u16 guang_tt = 0;
+  44          u16 guang_flag = 0;
+  45          
+  46          u8 story_cnt = 0;
+  47          
+  48          u8 read_cnt = 0;
+  49          u16 read_tt = 0;
+  50          
+  51          bit DataIsNull = 1;
+  52          
+  53          u8 datacnt = 0;
+  54          
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 2   
+
+  55          extern u8 TIME[];
+  56          
+  57          float temperature;
+  58          
+  59          bit flicker_flag = 0;
+  60          u16 flicker_tt = 0;
+  61          
+  62          void Delay5ms()         //@12.000MHz
+  63          {
+  64   1              unsigned char i, j;
+  65   1      
+  66   1              i = 59;
+  67   1              j = 90;
+  68   1              do
+  69   1              {
+  70   2                      while (--j);
+  71   2              } while (--i);
+  72   1      }
+  73          
+  74          void set_port(u8 p2,u8 p0)
+  75          {
+  76   1              P0 = p0;
+  77   1              P2 &= 0X1F;
+  78   1              P2 |= p2;       // 不能影响其他位，否则可能会对其他的协议造成影响
+  79   1              P0 = p0;
+  80   1              P2 &= 0X1F;
+  81   1      }
+  82          
+  83          void allinit(void)
+  84          {
+  85   1              set_port(0x80,0xff);
+  86   1              set_port(0xc0,0xff);
+  87   1              set_port(0xe0,0xff);
+  88   1              set_port(0xa0,0x00);
+  89   1      }
+  90          
+  91          void display()
+  92          {
+  93   1              if(display_mode == 0)
+  94   1              {
+  95   2                      disbuf[1] = (u16)(temperature) / 10 % 10;
+  96   2                      disbuf[2] = (u16)(temperature) % 10;
+  97   2                      disbuf[3] = 12;
+  98   2                      disbuf[4] = 11;
+  99   2                      disbuf[5] = 11;
+ 100   2                      disbuf[6] = H / 10;
+ 101   2                      disbuf[7] = H % 10;
+ 102   2                      disbuf[8] = 13;
+ 103   2              }
+ 104   1              else if(display_mode == 1)
+ 105   1              {
+ 106   2                      disbuf[1] = TIME[2] / 16;
+ 107   2                      disbuf[2] = TIME[2] % 16;
+ 108   2                      disbuf[3] = 10;
+ 109   2                      disbuf[4] = TIME[1] / 16;
+ 110   2                      disbuf[5] = TIME[1] % 16;
+ 111   2                      disbuf[6] = 10;
+ 112   2                      disbuf[7] = TIME[0] / 16;
+ 113   2                      disbuf[8] = TIME[0] % 16;
+ 114   2              }
+ 115   1              else if(display_mode == 2)
+ 116   1              {
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 3   
+
+ 117   2                      disbuf[1] = 11;
+ 118   2                      disbuf[2] = 11;
+ 119   2                      disbuf[3] = 11;
+ 120   2                      disbuf[4] = 10;
+ 121   2                      disbuf[5] = stay_time / 1000;
+ 122   2                      disbuf[6] = stay_time / 100 % 10;
+ 123   2                      disbuf[7] = stay_time / 10 % 10;
+ 124   2                      disbuf[8] = stay_time % 10;             
+ 125   2              }
+ 126   1              
+ 127   1      }
+ 128          
+ 129          void BTN(void)
+ 130          {
+ 131   1              u8 key_temp ;
+ 132   1              key_temp = P3 & 0X0F;
+ 133   1              if(key_temp != 0x0f && !key_buf)
+ 134   1              {
+ 135   2                      Delay5ms();
+ 136   2                      key_temp = P3 & 0X0F;
+ 137   2                      if(key_temp != 0x0f && !key_buf)
+ 138   2                      {       
+ 139   3                              key_buf = key_temp;
+ 140   3                      }
+ 141   2              }
+ 142   1              else if(key_temp == 0x0f && key_buf)
+ 143   1              {
+ 144   2                      Delay5ms();
+ 145   2                      key_temp = P3 & 0X0F;
+ 146   2                      if(key_temp == 0x0f && key_buf)
+ 147   2                      {       
+ 148   3                              switch(key_buf) // 这里要特别注意是key_buf，不要粗心写成了key_temp
+ 149   3                              {
+ 150   4                                      case 0x0b: work_mode = !work_mode; uartsend_open = 0; break;
+ 151   4                                      case 0x07: display_mode = (display_mode + 1) % 3; break;
+ 152   4                              }
+ 153   3                              key_buf = 0;
+ 154   3                      }
+ 155   2              }
+ 156   1      }
+ 157          
+ 158          void Timer2Init(void)           //1毫秒@12.000MHz
+ 159          {
+ 160   1              AUXR |= 0x04;           //定时器时钟1T模式
+ 161   1              T2L = 0x20;             //设置定时初值
+ 162   1              T2H = 0xD1;             //设置定时初值
+ 163   1              AUXR |= 0x10;           //定时器2开始计时
+ 164   1      }
+ 165          
+ 166          void timer2(void) interrupt 12
+ 167          {
+ 168   1              u8 led_state = 0xff;
+ 169   1              if(++flicker_tt >= 1000)
+ 170   1              {
+ 171   2                      flicker_tt = 0;
+ 172   2                      flicker_flag = !flicker_flag;
+ 173   2              }
+ 174   1              if(display_mode == 1 && flicker_flag == 0 && (smg_cnt == 2 || smg_cnt == 5))
+ 175   1              {
+ 176   2                      set_port(0xc0, 0x01 << smg_cnt);
+ 177   2                      set_port(0xe0, TAB[11]);
+ 178   2              }
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 4   
+
+ 179   1              else
+ 180   1              {
+ 181   2                      set_port(0xc0, 0x01 << smg_cnt);
+ 182   2                      set_port(0xe0, TAB[disbuf[smg_cnt + 1]]);
+ 183   2              }
+ 184   1              
+ 185   1              if(++smg_cnt >= 8) smg_cnt = 0;
+ 186   1              
+ 187   1              if(uartsend_open && ++uart_tt >= 1000)
+ 188   1              {
+ 189   2                      uart_tt = 0;
+ 190   2                      uartsend_flag = 1;
+ 191   2                      if(work_mode)
+ 192   2                      {
+ 193   3                              read_cnt = (read_cnt + 1) % datacnt;
+ 194   3                      }
+ 195   2              }
+ 196   1              
+ 197   1              if(uartrec_flag && ++uartrec_tt >= 50)
+ 198   1              {
+ 199   2                      uartrec_tt = 0;
+ 200   2                      uartrec_flag = 0;
+ 201   2                      uartrec_cnt = 0;
+ 202   2              }
+ 203   1              
+ 204   1              if(stay_flag && ++stay_tt >= 1000)
+ 205   1              {
+ 206   2                      stay_tt = 0;
+ 207   2                      stay_time_now++;
+ 208   2              }
+ 209   1              
+ 210   1              if(++guang_tt >= 300)
+ 211   1              {
+ 212   2                      guang_tt = 0;
+ 213   2                      guang_flag = 1;
+ 214   2              }
+ 215   1              
+ 216   1              if(work_mode == 0)
+ 217   1              {
+ 218   2                      led_state &= 0xfe;
+ 219   2              }
+ 220   1              else 
+ 221   1              {
+ 222   2                      led_state &= 0xfd;
+ 223   2              }
+ 224   1              
+ 225   1              if(coming_flag)
+ 226   1              {
+ 227   2                      led_state &= 0xfb;
+ 228   2              }
+ 229   1              
+ 230   1              set_port(0x80,led_state);
+ 231   1      }
+ 232          
+ 233          /*----------------------------
+ 234          发送串口数据
+ 235          ----------------------------*/
+ 236          void SendData(u8 dat)
+ 237          {
+ 238   1          while (busy);               //等待前面的数据发送完成
+ 239   1          busy = 1;
+ 240   1          SBUF = dat;                 //写数据到UART数据寄存器
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 5   
+
+ 241   1      }
+ 242          
+ 243          /*----------------------------
+ 244          发送字符串
+ 245          ----------------------------*/
+ 246          void SendString(char *s)
+ 247          {
+ 248   1          while (*s)                  //检测字符串结束标志
+ 249   1          {
+ 250   2              SendData(*s++);         //发送当前字符
+ 251   2          }
+ 252   1      }
+ 253          
+ 254          void UartSend()
+ 255          {
+ 256   1              if(uartsend_open && uartsend_flag)
+ 257   1              {
+ 258   2                      uartsend_flag = 0;
+ 259   2      // 12温度，45湿度，9.10时，12.13分钟，15.16秒，19光敏
+ 260   2                      if(work_mode == 0)
+ 261   2                      {
+ 262   3                              str1[1] = (u16)temperature / 10 + '0';
+ 263   3                              str1[2] = (u16)temperature % 10 + '0';
+ 264   3                              str1[4] = (H / 10) + '0';
+ 265   3                              str1[5] = (H % 10) + '0';
+ 266   3                              str1[9] = (TIME[2] / 16) + '0';
+ 267   3                              str1[10] = (TIME[2] % 16) + '0';
+ 268   3                              str1[12] = (TIME[1] / 16) + '0';
+ 269   3                              str1[13] = (TIME[1] % 16) + '0';
+ 270   3                              str1[15] = (TIME[0] / 16) + '0';
+ 271   3                              str1[16] = (TIME[0] % 16) + '0';
+ 272   3                              SendString(str1);
+ 273   3                              SendData(coming_flag + '0');
+ 274   3                              SendString(str2);
+ 275   3                      }
+ 276   2                      else
+ 277   2                      {
+ 278   3                              if(DataIsNull)
+ 279   3                              {
+ 280   4                                      ;
+ 281   4                              }
+ 282   3                              else
+ 283   3                              {
+ 284   4                                      u16 temp;
+ 285   4                                      temp = read_at24c02(read_cnt * 7 + 0);
+ 286   4                                      str1[1] = (temp / 10) + '0';
+ 287   4                                      str1[2] = (temp % 10) + '0';
+ 288   4                                      temp = read_at24c02(read_cnt * 7 + 1);
+ 289   4                                      str1[4] = (temp / 10) + '0';
+ 290   4                                      str1[5] = (temp % 10) + '0';
+ 291   4                                      temp = read_at24c02(read_cnt * 7+ 2);
+ 292   4                                      str1[9] = (temp / 16) + '0';
+ 293   4                                      str1[10] = (temp % 16) + '0';
+ 294   4                                      temp = read_at24c02(read_cnt * 7 + 3);
+ 295   4                                      str1[12] = (temp / 16) + '0';
+ 296   4                                      str1[13] = (temp % 16) + '0';
+ 297   4                                      temp = read_at24c02(read_cnt * 7 + 4);
+ 298   4                                      str1[15] = (temp / 16) + '0';
+ 299   4                                      str1[16] = (temp % 16) + '0';
+ 300   4                                      SendString(str1);
+ 301   4                                      temp = read_at24c02(read_cnt * 7+ 5) * 16 + read_at24c02(read_cnt * 7 + 6);
+ 302   4                                      if(temp / 10000)
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 6   
+
+ 303   4                                              SendData((temp / 10000) + '0');
+ 304   4                                      else if(temp / 1000 % 10)
+ 305   4                                              SendData((temp / 1000 % 10) + '0');
+ 306   4                                      else if(temp / 100 % 10)
+ 307   4                                              SendData((temp / 100 % 10) + '0');
+ 308   4                                      else if(temp / 10 % 10)
+ 309   4                                              SendData((temp / 10 % 10) + '0');
+ 310   4                                      SendData((temp % 10) + '0');
+ 311   4                                      SendString(str2);       
+ 312   4                              }               
+ 313   3                      }
+ 314   2              }
+ 315   1      
+ 316   1      }
+ 317          
+ 318          /*----------------------------
+ 319          UART 中断服务程序
+ 320          -----------------------------*/
+ 321          void Uart() interrupt 4
+ 322          {
+ 323   1              
+ 324   1          if (RI)
+ 325   1          {
+ 326   2                      if(uartrec_cnt == 0)
+ 327   2                      {
+ 328   3                              uartrec_flag = 1;
+ 329   3                              uartrec_tt = 0;
+ 330   3                              uartsend_open = 0;
+ 331   3                      }
+ 332   2              RI = 0;                 //清除RI位
+ 333   2              UartRec[uartrec_cnt++] = SBUF;
+ 334   2                      if(uartrec_cnt == 6)
+ 335   2                      {
+ 336   3                              UartRec[uartrec_cnt++] = '\0';
+ 337   3                              if(strcmp(UartRec,"AAASSS") == 0)
+ 338   3                              {
+ 339   4                                      uartsend_open = 1;
+ 340   4                              }
+ 341   3                      }
+ 342   2          }
+ 343   1          if (TI)
+ 344   1          {
+ 345   2              TI = 0;                 //清除TI位
+ 346   2              busy = 0;               //清忙标志
+ 347   2          }
+ 348   1      }
+ 349          
+ 350          void UartInit(void)             //1200bps@12.000MHz
+ 351          {
+ 352   1              SCON = 0x50;            //8位数据,可变波特率
+ 353   1              AUXR |= 0x40;           //定时器1时钟为Fosc,即1T
+ 354   1              AUXR &= 0xFE;           //串口1选择定时器1为波特率发生器
+ 355   1              TMOD &= 0x0F;           //设定定时器1为16位自动重装方式
+ 356   1              TL1 = 0x3C;             //设定定时初值
+ 357   1              TH1 = 0xF6;             //设定定时初值
+ 358   1              ET1 = 0;                //禁止定时器1中断
+ 359   1              TR1 = 1;                //启动定时器1
+ 360   1      }
+ 361          
+ 362          
+ 363          void main()
+ 364          {
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 7   
+
+ 365   1              allinit();
+ 366   1              Timer2Init();
+ 367   1              UartInit();
+ 368   1              ES = 1;
+ 369   1              IE2 |= 0X04;    // 打开定时器2的中断，谨记
+ 370   1              EA = 1;
+ 371   1              init_ds1302();
+ 372   1              write_pcf8591(153);
+ 373   1              while(1)
+ 374   1              {
+ 375   2                      
+ 376   2                      temperature = read_temperature();
+ 377   2                      read_ds1302();
+ 378   2                      H = read_pcf8591(3) * 0.39;
+ 379   2                      H = read_pcf8591(3) * 0.39;
+ 380   2                      if(guang_flag)
+ 381   2                      {               
+ 382   3                              guang = read_pcf8591(1);
+ 383   3                              guang = read_pcf8591(1);        
+ 384   3                              guang_flag = 0;
+ 385   3                      }
+ 386   2                      if(guang < 40)
+ 387   2                      {
+ 388   3                              if(stay_flag == 0)
+ 389   3                              {
+ 390   4                                      stay_tt = 0;
+ 391   4                                      write_at24c02(story_cnt * 7 + 0,(u8)temperature);
+ 392   4                                      Delay5ms();
+ 393   4                                      write_at24c02(story_cnt * 7 + 1,H);
+ 394   4                                      Delay5ms();
+ 395   4                                      write_at24c02(story_cnt * 7 + 2,TIME[2]);
+ 396   4                                      Delay5ms();
+ 397   4                                      write_at24c02(story_cnt * 7 + 3,TIME[1]);
+ 398   4                                      Delay5ms();
+ 399   4                                      write_at24c02(story_cnt * 7 + 4,TIME[0]);
+ 400   4                                      Delay5ms();
+ 401   4                              }
+ 402   3                              stay_flag = 1;
+ 403   3                              coming_flag = 1;
+ 404   3                      }
+ 405   2                      else 
+ 406   2                      {
+ 407   3                              if(stay_time_now != 0 || coming_flag == 1)
+ 408   3                              {
+ 409   4                                      stay_time = stay_time_now;
+ 410   4                                      stay_time_now = 0;                              
+ 411   4                                      if(work_mode == 1)
+ 412   4                                      {
+ 413   5                                              write_at24c02(story_cnt * 7 + 5,stay_time / 16);
+ 414   5                                              Delay5ms();
+ 415   5                                              write_at24c02(story_cnt * 7 + 6,stay_time % 16);
+ 416   5                                              Delay5ms();
+ 417   5                                              story_cnt = (story_cnt + 1) % 5;
+ 418   5                                              DataIsNull = 0;
+ 419   5                                              if(datacnt != 5) datacnt++;
+ 420   5                                      }
+ 421   4                              }
+ 422   3                              stay_tt = 0;
+ 423   3                              coming_flag = 0;
+ 424   3                              stay_flag = 0;
+ 425   3                      }
+ 426   2                      display();
+C51 COMPILER V9.55   MAIN                                                                  11/04/2020 23:39:02 PAGE 8   
+
+ 427   2                      BTN();
+ 428   2                      UartSend();
+ 429   2              }
+ 430   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1796    ----
+   CONSTANT SIZE    =     21    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     86       5
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      7    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
