@@ -1,10 +1,10 @@
-C51 COMPILER V9.55   MAIN                                                                  11/08/2020 15:03:33 PAGE 1   
+C51 COMPILER V9.60.0.0   MAIN                                                              05/08/2021 10:47:49 PAGE 1   
 
 
-C51 COMPILER V9.55, COMPILATION OF MODULE MAIN
+C51 COMPILER V9.60.0.0, COMPILATION OF MODULE MAIN
 OBJECT MODULE PLACED IN .\Objects\main.obj
 COMPILER INVOKED BY: F:\Keil_v5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Listings\main
-                    -.lst) OBJECT(.\Objects\main.obj)
+                    -.lst) TABS(2) OBJECT(.\Objects\main.obj)
 
 line level    source
 
@@ -45,296 +45,296 @@ line level    source
   35          
   36          void set_port(u8 p2,u8 p0)
   37          {
-  38   1              P0 = p0;
-  39   1              P2 &= 0X1F;
-  40   1              P2 |= p2;
-  41   1              P0 = p0;
-  42   1              P2 &= 0X1F;
+  38   1        P0 = p0;
+  39   1        P2 &= 0X1F;
+  40   1        P2 |= p2;
+  41   1        P0 = p0;
+  42   1        P2 &= 0X1F;
   43   1      }
   44          
   45          void allinit(void)
   46          {
-  47   1              set_port(0x80,0xff);
-  48   1              set_port(0xa0,0x00);
-  49   1              set_port(0xc0,0xff);
-  50   1              set_port(0xe0,0xff);
+  47   1        set_port(0x80,0xff);
+  48   1        set_port(0xa0,0x00);
+  49   1        set_port(0xc0,0xff);
+  50   1        set_port(0xe0,0xff);
   51   1      }
   52          
-  53          void Delay5ms()         //@12.000MHz
+  53          void Delay5ms()   //@12.000MHz
   54          {
-C51 COMPILER V9.55   MAIN                                                                  11/08/2020 15:03:33 PAGE 2   
+C51 COMPILER V9.60.0.0   MAIN                                                              05/08/2021 10:47:49 PAGE 2   
 
-  55   1              unsigned char i, j;
+  55   1        unsigned char i, j;
   56   1      
-  57   1              i = 59;
-  58   1              j = 90;
-  59   1              do
-  60   1              {
-  61   2                      while (--j);
-  62   2              } while (--i);
+  57   1        i = 59;
+  58   1        j = 90;
+  59   1        do
+  60   1        {
+  61   2          while (--j);
+  62   2        } while (--i);
   63   1      }
   64          
   65          void display(void)
   66          {
-  67   1              if(mode == 0)
-  68   1              {
-  69   2                      disbuf[1] = 12;
-  70   2                      disbuf[2] = 11;
-  71   2                      disbuf[3] = distance / 100;
-  72   2                      disbuf[4] = distance / 10 % 10;
-  73   2                      disbuf[5] = distance % 10;
-  74   2                      disbuf[6] = distance_last / 100;
-  75   2                      disbuf[7] = distance_last / 10 % 10;
-  76   2                      disbuf[8] = distance_last % 10;
-  77   2              }
-  78   1              else if(mode == 1)
-  79   1              {
-  80   2                      disbuf[1] = distance_intr + 1;
-  81   2                      disbuf[2] = 11;
-  82   2                      disbuf[3] = 11;
-  83   2                      disbuf[4] = 11;
-  84   2                      disbuf[5] = 11;
-  85   2                      disbuf[6] = distance_second / 100;
-  86   2                      disbuf[7] = distance_second / 10 % 10;
-  87   2                      disbuf[8] = distance_second % 10;
-  88   2              }
-  89   1              else if(mode == 2)
-  90   1              {
-  91   2                      disbuf[1] = 13;
-  92   2                      disbuf[2] = 11;
-  93   2                      disbuf[3] = 11;
-  94   2                      disbuf[4] = 11;
-  95   2                      disbuf[5] = 11;
-  96   2                      disbuf[6] = 11;
-  97   2                      disbuf[7] = mang / 10;
-  98   2                      disbuf[8] = mang % 10;
-  99   2              }
+  67   1        if(mode == 0)
+  68   1        {
+  69   2          disbuf[1] = 12;
+  70   2          disbuf[2] = 11;
+  71   2          disbuf[3] = distance / 100;
+  72   2          disbuf[4] = distance / 10 % 10;
+  73   2          disbuf[5] = distance % 10;
+  74   2          disbuf[6] = distance_last / 100;
+  75   2          disbuf[7] = distance_last / 10 % 10;
+  76   2          disbuf[8] = distance_last % 10;
+  77   2        }
+  78   1        else if(mode == 1)
+  79   1        {
+  80   2          disbuf[1] = distance_intr + 1;
+  81   2          disbuf[2] = 11;
+  82   2          disbuf[3] = 11;
+  83   2          disbuf[4] = 11;
+  84   2          disbuf[5] = 11;
+  85   2          disbuf[6] = distance_second / 100;
+  86   2          disbuf[7] = distance_second / 10 % 10;
+  87   2          disbuf[8] = distance_second % 10;
+  88   2        }
+  89   1        else if(mode == 2)
+  90   1        {
+  91   2          disbuf[1] = 13;
+  92   2          disbuf[2] = 11;
+  93   2          disbuf[3] = 11;
+  94   2          disbuf[4] = 11;
+  95   2          disbuf[5] = 11;
+  96   2          disbuf[6] = 11;
+  97   2          disbuf[7] = mang / 10;
+  98   2          disbuf[8] = mang % 10;
+  99   2        }
  100   1      }
  101          
  102          void BTN(void)
  103          {
- 104   1              u8 key_temp;
- 105   1              key_temp = P3 & 0X0F;
- 106   1              if(key_temp != 0x0f && key_buf == 0)
- 107   1              {
- 108   2                      Delay5ms();
- 109   2                      key_temp = P3 & 0X0F;
- 110   2                      if(key_temp != 0x0f && key_buf == 0)
- 111   2                      {
- 112   3                              key_buf = key_temp;
- 113   3                      }
- 114   2              }
- 115   1              else if(key_temp == 0x0f && key_buf)
- 116   1              {
-C51 COMPILER V9.55   MAIN                                                                  11/08/2020 15:03:33 PAGE 3   
+ 104   1        u8 key_temp;
+ 105   1        key_temp = P3 & 0X0F;
+ 106   1        if(key_temp != 0x0f && key_buf == 0)
+ 107   1        {
+ 108   2          Delay5ms();
+ 109   2          key_temp = P3 & 0X0F;
+ 110   2          if(key_temp != 0x0f && key_buf == 0)
+ 111   2          {
+ 112   3            key_buf = key_temp;
+ 113   3          }
+ 114   2        }
+ 115   1        else if(key_temp == 0x0f && key_buf)
+ 116   1        {
+C51 COMPILER V9.60.0.0   MAIN                                                              05/08/2021 10:47:49 PAGE 3   
 
- 117   2                      Delay5ms();
- 118   2                      key_temp = P3 & 0X0F;
- 119   2                      if(key_temp == 0x0f && key_buf)
- 120   2                      {
- 121   3                              switch(key_buf)
- 122   3                              {
- 123   4                                      case 0x0e:
- 124   4                                              if(mode == 1)
- 125   4                                              {
- 126   5                                                      distance_intr = (distance_intr + 1) % 4;
- 127   5                                                      distance_second = read_eeprom(distance_intr);
- 128   5                                              }
- 129   4                                              else if(mode == 2)
- 130   4                                              {
- 131   5                                                      switch(mang)
- 132   5                                                      {
- 133   6                                                              case 0: mang = 10; break;
- 134   6                                                              case 10: mang = 20; break;
- 135   6                                                              case 20: mang = 30; break;
- 136   6                                                              case 30: mang = 0; break;
- 137   6                                                      }
- 138   5                                              }
- 139   4                                      break;
- 140   4                                      case 0x0d:      // 参数设置
- 141   4                                              if(mode == 2)
- 142   4                                              {
- 143   5                                                      mode = 0;
- 144   5                                                      write_eeprom(0x04,mang);
- 145   5                                              }
- 146   4                                              else
- 147   4                                              {
- 148   5                                                      mode = 2;
- 149   5                                              }
- 150   4                                      break;
- 151   4                                      case 0x0b: // 数据回显
- 152   4                                              if(mode == 1)
- 153   4                                              {
- 154   5                                                      mode = 0;
- 155   5                                              }
- 156   4                                              else if(mode != 2)
- 157   4                                              {
- 158   5                                                      mode = 1;
- 159   5                                                      distance_intr = 0;
- 160   5                                                      distance_second = read_eeprom(distance_intr);
- 161   5                                              }
- 162   4                                      break;
- 163   4                                      case 0x07:      // 启动测量
- 164   4                                              if(mode != 2)
- 165   4                                              {
- 166   5                                                      wave_flag = 1;
- 167   5                                                      mode = 0;
- 168   5                                              }
- 169   4                                      break;
- 170   4                              }
- 171   3                              key_buf = 0;
- 172   3                      }
- 173   2              }
+ 117   2          Delay5ms();
+ 118   2          key_temp = P3 & 0X0F;
+ 119   2          if(key_temp == 0x0f && key_buf)
+ 120   2          {
+ 121   3            switch(key_buf)
+ 122   3            {
+ 123   4              case 0x0e:
+ 124   4                if(mode == 1)
+ 125   4                {
+ 126   5                  distance_intr = (distance_intr + 1) % 4;
+ 127   5                  distance_second = read_eeprom(distance_intr);
+ 128   5                }
+ 129   4                else if(mode == 2)
+ 130   4                {
+ 131   5                  switch(mang)
+ 132   5                  {
+ 133   6                    case 0: mang = 10; break;
+ 134   6                    case 10: mang = 20; break;
+ 135   6                    case 20: mang = 30; break;
+ 136   6                    case 30: mang = 0; break;
+ 137   6                  }
+ 138   5                }
+ 139   4              break;
+ 140   4              case 0x0d:  // 参数设置
+ 141   4                if(mode == 2)
+ 142   4                {
+ 143   5                  mode = 0;
+ 144   5                  write_eeprom(0x04,mang);
+ 145   5                }
+ 146   4                else
+ 147   4                {
+ 148   5                  mode = 2;
+ 149   5                }
+ 150   4              break;
+ 151   4              case 0x0b: // 数据回显
+ 152   4                if(mode == 1)
+ 153   4                {
+ 154   5                  mode = 0;
+ 155   5                }
+ 156   4                else if(mode != 2)
+ 157   4                {
+ 158   5                  mode = 1;
+ 159   5                  distance_intr = 0;
+ 160   5                  distance_second = read_eeprom(distance_intr);
+ 161   5                }
+ 162   4              break;
+ 163   4              case 0x07:  // 启动测量
+ 164   4                if(mode != 2)
+ 165   4                {
+ 166   5                  wave_flag = 1;
+ 167   5                  mode = 0;
+ 168   5                }
+ 169   4              break;
+ 170   4            }
+ 171   3            key_buf = 0;
+ 172   3          }
+ 173   2        }
  174   1      }
  175          
- 176          void Timer2Init(void)           //1毫秒@12.000MHz
+ 176          void Timer2Init(void)   //1毫秒@12.000MHz
  177          {
- 178   1              AUXR |= 0x04;           //定时器时钟1T模式
-C51 COMPILER V9.55   MAIN                                                                  11/08/2020 15:03:33 PAGE 4   
+ 178   1        AUXR |= 0x04;   //定时器时钟1T模式
+C51 COMPILER V9.60.0.0   MAIN                                                              05/08/2021 10:47:49 PAGE 4   
 
- 179   1              T2L = 0x20;             //设置定时初值
- 180   1              T2H = 0xD1;             //设置定时初值
- 181   1              AUXR |= 0x10;           //定时器2开始计时
+ 179   1        T2L = 0x20;   //设置定时初值
+ 180   1        T2H = 0xD1;   //设置定时初值
+ 181   1        AUXR |= 0x10;   //定时器2开始计时
  182   1      }
  183          
  184          void timer2(void) interrupt 12
  185          {
- 186   1              u8 led_state = 0xff;
- 187   1              
- 188   1              set_port(0xe0,TAB[11]); 
- 189   1              set_port(0xc0,0x01 << smg_cnt);
- 190   1              set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);
- 191   1              if(++smg_cnt >= 8) smg_cnt = 0;
- 192   1      //      
- 193   1      //      if(++wave_tt >= 300)
- 194   1      //      {
- 195   1      //              wave_tt = 0;
- 196   1      //              wave_flag = 1;
- 197   1      //      }
- 198   1              
- 199   1              if(led1_open && ++led1_tt >= 1000)
- 200   1              {
- 201   2                      led1_tt = 0;
- 202   2                      led1_flag = !led1_flag;
- 203   2                      if(led1_flag)
- 204   2                      {
- 205   3                              led1_cnt++;
- 206   3                              if(led1_cnt == 3)
- 207   3                              {
- 208   4                                      led1_open = 0;
- 209   4                                      led1_tt = 0;
- 210   4                              }
- 211   3                      }
- 212   2              }
- 213   1              
- 214   1              if(led1_flag == 0 && led1_open)
- 215   1              {
- 216   2                      led_state &= 0xfe;
- 217   2              }
- 218   1              
- 219   1              if(mode == 2)
- 220   1              {
- 221   2                      led_state &= 0xbf;
- 222   2              }
- 223   1              if(mode == 1)
- 224   1              {
- 225   2                      led_state &= 0x7f;
- 226   2              }
- 227   1              set_port(0x80,led_state);
+ 186   1        u8 led_state = 0xff;
+ 187   1        
+ 188   1        set_port(0xe0,TAB[11]); 
+ 189   1        set_port(0xc0,0x01 << smg_cnt);
+ 190   1        set_port(0xe0,TAB[disbuf[smg_cnt + 1]]);
+ 191   1        if(++smg_cnt >= 8) smg_cnt = 0;
+ 192   1      //  
+ 193   1      //  if(++wave_tt >= 300)
+ 194   1      //  {
+ 195   1      //    wave_tt = 0;
+ 196   1      //    wave_flag = 1;
+ 197   1      //  }
+ 198   1        
+ 199   1        if(led1_open && ++led1_tt >= 1000)
+ 200   1        {
+ 201   2          led1_tt = 0;
+ 202   2          led1_flag = !led1_flag;
+ 203   2          if(led1_flag)
+ 204   2          {
+ 205   3            led1_cnt++;
+ 206   3            if(led1_cnt == 3)
+ 207   3            {
+ 208   4              led1_open = 0;
+ 209   4              led1_tt = 0;
+ 210   4            }
+ 211   3          }
+ 212   2        }
+ 213   1        
+ 214   1        if(led1_flag == 0 && led1_open)
+ 215   1        {
+ 216   2          led_state &= 0xfe;
+ 217   2        }
+ 218   1        
+ 219   1        if(mode == 2)
+ 220   1        {
+ 221   2          led_state &= 0xbf;
+ 222   2        }
+ 223   1        if(mode == 1)
+ 224   1        {
+ 225   2          led_state &= 0x7f;
+ 226   2        }
+ 227   1        set_port(0x80,led_state);
  228   1      }
  229          
- 230          void Timer1Init(void)           //12微秒@12.000MHz
+ 230          void Timer1Init(void)   //12微秒@12.000MHz
  231          {
- 232   1              AUXR &= 0xBF;           //定时器时钟12T模式
- 233   1              TMOD &= 0x0F;           //设置定时器模式
- 234   1              TL1 = 0xF4;             //设置定时初值
- 235   1              TH1 = 0xFF;             //设置定时初值
- 236   1              TF1 = 0;                //清除TF1标志
- 237   1              TR1 = 0;                //定时器1关闭
+ 232   1        AUXR &= 0xBF;   //定时器时钟12T模式
+ 233   1        TMOD &= 0x0F;   //设置定时器模式
+ 234   1        TL1 = 0xF4;   //设置定时初值
+ 235   1        TH1 = 0xFF;   //设置定时初值
+ 236   1        TF1 = 0;    //清除TF1标志
+ 237   1        TR1 = 0;    //定时器1关闭
  238   1      }
  239          
  240          void wave_send(void)
-C51 COMPILER V9.55   MAIN                                                                  11/08/2020 15:03:33 PAGE 5   
+C51 COMPILER V9.60.0.0   MAIN                                                              05/08/2021 10:47:49 PAGE 5   
 
  241          {
- 242   1              u8 num = 10;
- 243   1              TX = 0;
- 244   1              TL1 = 0xF4;             //设置定时初值
- 245   1              TH1 = 0xFF;             //设置定时初值
- 246   1              TR1 = 1;                //定时器1打开
- 247   1              while(num--)
- 248   1              {
- 249   2                      TX ^= 1;
- 250   2                      while(!TF1);
- 251   2                      TF1 = 0;
- 252   2              }
- 253   1              TR1 = 0;
- 254   1              TL1 = 0;                //设置定时初值
- 255   1              TH1 = 0;                //设置定时初值
- 256   1              TR1 = 1;                //定时器1打开
- 257   1              while(RX && !TF1);
- 258   1              TR1 = 0;
- 259   1              if(TF1)
- 260   1              {
- 261   2                      TF1 = 0;
- 262   2                      distance = 99;
- 263   2              }
- 264   1              else
- 265   1              {
- 266   2                      distance = ((TH1 << 8) | TL1) * 0.017;
- 267   2                      // x / 1000000 /2 * 340 * 100
- 268   2              }
+ 242   1        u8 num = 10;
+ 243   1        TX = 0;
+ 244   1        TL1 = 0xF4;   //设置定时初值
+ 245   1        TH1 = 0xFF;   //设置定时初值
+ 246   1        TR1 = 1;    //定时器1打开
+ 247   1        while(num--)
+ 248   1        {
+ 249   2          TX ^= 1;
+ 250   2          while(!TF1);
+ 251   2          TF1 = 0;
+ 252   2        }
+ 253   1        TR1 = 0;
+ 254   1        TL1 = 0;    //设置定时初值
+ 255   1        TH1 = 0;    //设置定时初值
+ 256   1        TR1 = 1;    //定时器1打开
+ 257   1        while(RX && !TF1);
+ 258   1        TR1 = 0;
+ 259   1        if(TF1)
+ 260   1        {
+ 261   2          TF1 = 0;
+ 262   2          distance = 99;
+ 263   2        }
+ 264   1        else
+ 265   1        {
+ 266   2          distance = ((TH1 << 8) | TL1) * 0.017;
+ 267   2          // x / 1000000 /2 * 340 * 100
+ 268   2        }
  269   1      }
  270          
  271          void main(void)
  272          {
- 273   1              allinit();
- 274   1              Timer2Init();
- 275   1              Timer1Init();
- 276   1              IE2 |= 0X04;
- 277   1              EA = 1;
- 278   1              write_eeprom(0x00,222);
- 279   1              Delay5ms();
- 280   1              res = read_eeprom(0x00);
- 281   1              while(1)
- 282   1              {
- 283   2                      if(wave_flag)
- 284   2                      {
- 285   3                              wave_flag = 0;
- 286   3                              distance_last = distance;
- 287   3                              wave_send();
- 288   3                              write_eeprom(measure_intr,distance);
- 289   3                              Delay5ms();
- 290   3                              measure_intr = (measure_intr + 1) % 4;
- 291   3                              if(distance <= mang)
- 292   3                              {
- 293   4                                      write_pcf8591(0);
- 294   4                              }
- 295   3                              else
- 296   3                              {
- 297   4                                      if((distance - mang) * 1.02 > 255)
- 298   4                                      {
- 299   5                                              write_pcf8591(255);
- 300   5                                      }
- 301   4                                      else 
- 302   4                                              write_pcf8591((distance - mang) * 1.02);
-C51 COMPILER V9.55   MAIN                                                                  11/08/2020 15:03:33 PAGE 6   
+ 273   1        allinit();
+ 274   1        Timer2Init();
+ 275   1        Timer1Init();
+ 276   1        IE2 |= 0X04;
+ 277   1        EA = 1;
+ 278   1        write_eeprom(0x00,222);
+ 279   1        Delay5ms();
+ 280   1        res = read_eeprom(0x00);
+ 281   1        while(1)
+ 282   1        {
+ 283   2          if(wave_flag)
+ 284   2          {
+ 285   3            wave_flag = 0;
+ 286   3            distance_last = distance;
+ 287   3            wave_send();
+ 288   3            write_eeprom(measure_intr,distance);
+ 289   3            Delay5ms();
+ 290   3            measure_intr = (measure_intr + 1) % 4;
+ 291   3            if(distance <= mang)
+ 292   3            {
+ 293   4              write_pcf8591(0);
+ 294   4            }
+ 295   3            else
+ 296   3            {
+ 297   4              if((distance - mang) * 1.02 > 255)
+ 298   4              {
+ 299   5                write_pcf8591(255);
+ 300   5              }
+ 301   4              else 
+ 302   4                write_pcf8591((distance - mang) * 1.02);
+C51 COMPILER V9.60.0.0   MAIN                                                              05/08/2021 10:47:49 PAGE 6   
 
- 303   4                              }
- 304   3                              Delay5ms();
- 305   3                              led1_cnt = 0;
- 306   3                              led1_tt = 0;
- 307   3                              led1_open = 1;
- 308   3                      }
- 309   2                      BTN();
- 310   2                      display();
- 311   2              }
+ 303   4            }
+ 304   3            Delay5ms();
+ 305   3            led1_cnt = 0;
+ 306   3            led1_tt = 0;
+ 307   3            led1_open = 1;
+ 308   3          }
+ 309   2          BTN();
+ 310   2          display();
+ 311   2        }
  312   1      }
  313          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    937    ----
+   CODE SIZE        =    970    ----
    CONSTANT SIZE    =     14    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----

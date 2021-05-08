@@ -10,7 +10,7 @@
       <TargetName>Target 1</TargetName>
       <ToolsetNumber>0x0</ToolsetNumber>
       <ToolsetName>MCS-51</ToolsetName>
-      <uAC6>8</uAC6>
+      <uAC6>0</uAC6>
       <TargetOption>
         <TargetCommonOption>
           <Device>STC15F2K60S2</Device>
@@ -233,7 +233,7 @@
               <RCB>
                 <Type>0</Type>
                 <StartAddress>0x0</StartAddress>
-                <Size>0xffff</Size>
+                <Size>0x10000</Size>
               </RCB>
               <RXB>
                 <Type>0</Type>
@@ -382,9 +382,9 @@
               <FilePath>.\main.c</FilePath>
             </File>
             <File>
-              <FileName>iic.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>.\iic.h</FilePath>
+              <FileName>onewire.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\onewire.c</FilePath>
             </File>
             <File>
               <FileName>iic.c</FileName>
